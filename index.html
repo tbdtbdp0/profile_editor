@@ -33,6 +33,10 @@
   .btn-grp button + button { border-left: 1px solid var(--ed-line); }
   .btn-grp button:hover:not(:disabled) { background: #fff; }
   .ico-btn { min-width: 30px; text-align: center; }
+  #btnSave.dirty { color: var(--ed-accent); font-weight: 700; }
+  #btnSave.dirty::after { content: "•"; margin-left: 4px; color: #e0674f; }
+  .pre-prompt { margin: 0; padding: 0 12px 12px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: var(--ed-sub); max-height: 300px; overflow: auto; }
+  textarea[data-path="cover.cHtml"] { font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
 
   .ed-tabs { display: flex; gap: 3px; padding: 7px 8px; border-bottom: 1px solid var(--ed-line-s); overflow-x: auto; scrollbar-width: none; background: linear-gradient(var(--ed-bg), var(--ed-soft)); }
   .ed-tabs::-webkit-scrollbar { display: none; }
@@ -138,7 +142,8 @@
   .note { background: var(--ed-accent-2); border: 1px solid #d3e7f7; color: #3a5a78; border-radius: var(--r-m); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; margin: 0; }
 
   /* 탭 관리 · 템플릿 */
-  .tab-row { display: grid; grid-template-columns: 46px 1fr auto auto auto auto; gap: 5px; align-items: center; background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); padding: 6px; box-shadow: var(--sh-1); }
+  .tab-row { display: grid; grid-template-columns: 46px 1fr auto; gap: 6px 5px; align-items: center; background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); padding: 6px; box-shadow: var(--sh-1); }
+  .tr-btns { grid-column: 1 / -1; display: flex; gap: 4px; justify-content: flex-end; }
   .tab-row .badge { white-space: nowrap; }
   .tab-row input[type=text]:first-child { text-align: center; padding: 8px 2px; }
   .tab-row button { padding: 5px 7px; }
@@ -266,7 +271,7 @@
 /* =========================================================
    기본 데이터
    ========================================================= */
-const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', creator: '', link: '', desc: '', prompt: '' }, o);
+const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', creator: '', link: '', desc: '', prompt: '', with: '' }, o);
 // kind: 'pair'(알약 · 두 명) / 'solo'(동그라미 · 한 명, a만 사용 · role로 캐릭터/유저 구분)
 const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', a: charObj(), b: charObj() }, o);
 const mainItem = (o = {}) => Object.assign({
@@ -278,21 +283,19 @@ const friendItem = (o = {}) => Object.assign({ accent: '', emoji: '', name: '', 
 
 // 표지 종류별 기본 안내 문구 · 글자 색 (종류를 바꿀 때 기본값이면 같이 바꿔줌)
 const COVER_DEFAULTS = {
-  cake:  { hint: '케이크를 눌러주세요', color: '#2c5f8a' },
-  heart: { hint: '하트를 눌러주세요',   color: '#2c5f8a' },
-  dream: { hint: '빛나는 문을 눌러주세요', color: '#5566c9' },
+  cake:   { hint: '케이크를 눌러주세요', color: '#2c5f8a' },
+  dream:  { hint: '빛나는 문을 눌러주세요', color: '#5566c9' },
+  custom: { hint: '', color: '#2c5f8a' },
 };
 
 const DEFAULT = {
   theme: { accent: '#4fa8e0', text: '#22364a', card: '#ffffff', font: 'Gowun Dodum' },
   cover: {
-    type: 'heart',
-    kicker: 'welcome to', title: 'my page', hint: COVER_DEFAULTS.heart.hint,
-    font: 'Cormorant Garamond', italic: true, color: COVER_DEFAULTS.heart.color,
-    // 하트 (홀로그램 거울)
-    image: '', blend: true, size: 300, hz: 84,
-    holo1: '#cfe6ff', holo2: '#eadfff', holo3: '#d6f7f0',
-    bokeh: true, bubble: true, reflect: true, glint: true,
+    type: 'cake',
+    kicker: 'welcome to', title: 'my page', hint: COVER_DEFAULTS.cake.hint,
+    font: 'Cormorant Garamond', italic: true, color: COVER_DEFAULTS.cake.color,
+    // 직접 만든 표지 (HTML)
+    cHtml: '', cHtmlBg: '#eef4fb', cHtmlText: false, cPrompt: '',
     // 드림코어
     dSky1: '#8ec9ff', dSky2: '#fde8ff', dFloor: '#ffffff', dGrid: '#a9d2ff', dFloorType: 'checker',
     dCenter: 'door', dImage: '',
@@ -305,6 +308,8 @@ const DEFAULT = {
     frost: '#bfe0f7', cream: '#fffdf8', sponge: '#f3d9a4', deco: '#e2445c', candle: true,
   },
   address: 'my-intro.page',
+  // 비밀번호로 보이는 탭 나누기 (소스를 보면 내용을 알 수 있는 '가벼운 잠금')
+  lock: { on: false, title: '비밀번호를 입력해 주세요', hint: '', wrong: '비밀번호가 맞지 않아요', codes: [] },
   // type: 기본 탭(profile/mains/others/friends) 또는 템플릿 탭(text/qna/rules/gallery/links → 내용은 pages[id])
   tabs: [
     { id: 'profile', type: 'profile', name: '프로필', icon: '🫧' },
@@ -336,7 +341,7 @@ const DEFAULT = {
     ],
   },
   others: {
-    cols: 1, showName: true, namePos: 'in', nameFont: 'body', groups: [], groupStyle: 'title', showAll: true, intro: '누르면 자세히 볼 수 있어요',
+    cols: 1, showName: true, namePos: 'in', nameFont: 'body', showRole: true, detailStyle: 'card', groups: [], groupStyle: 'title', showAll: true, intro: '누르면 자세히 볼 수 있어요',
     items: [
       pairItem({ a: charObj({ name: 'Character C', platform: '플랫폼', creator: '@creator', desc: '캐릭터 소개' }), b: charObj({ name: 'User D', desc: '유저 소개', prompt: 'short black hair, round glasses, hoodie' }) }),
       pairItem({ accent: '#9b8cf0', a: charObj({ name: '캐릭터 E', platform: '플랫폼' }), b: charObj({ name: '유저 F' }) }),
@@ -371,6 +376,12 @@ const FRONT_MODES = {
   single: { label: '한 장', icon: '<rect x="10" y="3" width="24" height="24" rx="2" fill="currentColor" opacity=".5"/>' },
   duo:    { label: '두 장 섞기', icon: '<rect x="6" y="3" width="20" height="24" rx="2" fill="currentColor" opacity=".55"/><rect x="18" y="3" width="20" height="24" rx="2" fill="currentColor" opacity=".3"/>' },
 };
+const DETAIL_STYLES = {
+  card:   { label: '기본 카드', icon: '<rect x="3" y="4" width="17" height="22" rx="3" fill="currentColor" opacity=".45"/><rect x="24" y="4" width="17" height="22" rx="3" fill="currentColor" opacity=".45"/>' },
+  row:    { label: '가로 줄', icon: '<circle cx="9" cy="8" r="5" fill="currentColor" opacity=".5"/><rect x="18" y="5" width="22" height="2.5" rx="1" fill="currentColor"/><rect x="18" y="10" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/><circle cx="9" cy="22" r="5" fill="currentColor" opacity=".5"/><rect x="18" y="19" width="22" height="2.5" rx="1" fill="currentColor"/><rect x="18" y="24" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/>' },
+  poster: { label: '포스터', icon: '<rect x="3" y="2" width="17" height="26" rx="3" fill="currentColor" opacity=".55"/><rect x="24" y="2" width="17" height="26" rx="3" fill="currentColor" opacity=".55"/><rect x="6" y="20" width="11" height="2.5" rx="1" fill="#fff"/><rect x="27" y="20" width="11" height="2.5" rx="1" fill="#fff"/>' },
+  frame:  { label: '폴라로이드', icon: '<g transform="rotate(-5 11 15)"><rect x="3" y="3" width="16" height="22" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="5" width="12" height="12" fill="currentColor" opacity=".45"/></g><g transform="rotate(5 33 15)"><rect x="25" y="3" width="16" height="22" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="27" y="5" width="12" height="12" fill="currentColor" opacity=".45"/></g>' },
+};
 const PAIR_KINDS = {
   pair: { label: '페어 (알약)', icon: '<rect x="2" y="7" width="40" height="16" rx="8" fill="currentColor" opacity=".5"/>' },
   solo: { label: '단독 (동그라미)', icon: '<circle cx="22" cy="15" r="11" fill="currentColor" opacity=".5"/>' },
@@ -388,8 +399,8 @@ const TEXT_STYLES = {
 };
 const COVER_TYPES = {
   cake:  { label: '케이크', icon: '<rect x="10" y="15" width="24" height="11" rx="2" fill="currentColor" opacity=".5"/><ellipse cx="22" cy="15" rx="12" ry="4" fill="currentColor"/><rect x="21" y="4" width="2" height="8" rx="1" fill="currentColor"/>' },
-  heart: { label: '하트 · 거울', icon: '<path d="M22 22C13 16 9 12 9 8 9 5 11.4 3 14.2 3c3 0 5.6 1.6 7.8 4 2.2-2.4 4.8-4 7.8-4C32.6 3 35 5 35 8c0 4-4 8-13 14Z" fill="currentColor" opacity=".6"/><path d="M4 24h36" stroke="currentColor" stroke-width="1"/><path d="M22 25C15 28 11 29 9 29M22 25c7 3 11 4 13 4" stroke="currentColor" stroke-width="1" opacity=".35"/>' },
   dream: { label: '드림코어', icon: '<path d="M0 17h44M6 29l10-12M38 29L28 17M22 29V17M2 22h40" stroke="currentColor" stroke-width="1" opacity=".55"/><path d="M18 17V9a4 4 0 018 0v8Z" fill="currentColor" opacity=".6"/><path d="M8 5l1 2 2 1-2 1-1 2-1-2-2-1 2-1zM36 3l.8 1.6 1.6.8-1.6.8L36 7.8l-.8-1.6L33.6 5.4l1.6-.8z" fill="currentColor"/>' },
+  custom: { label: '직접 만들기 (HTML)', icon: '<rect x="3" y="4" width="38" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".6"/><path d="M15 11l-5 4 5 4M29 11l5 4-5 4M25 9l-6 12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' },
 };
 const COVER_FONTS = {
   'Cormorant Garamond': { spec: 'ital,wght@0,500;1,400;1,500', label: 'Cormorant · 우아한 세리프' },
@@ -425,8 +436,15 @@ const MAX_TABS = 8;
 // 기본 탭 원본(id === 종류)은 state.profile 등을, 복제한 기본 탭·템플릿 탭은 state.pages[id] 를 사용
 const dataPath = tb => BUILTIN_TABS[tb.type] && tb.id === tb.type ? tb.type : `pages.${tb.id}`;
 
+// 비밀번호를 그대로 넣지 않으려고 쓰는 가벼운 해시 (FNV-1a) — 완전한 보안은 아님
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < String(str).length; i++) { h ^= String(str).charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+
 const clone = o => JSON.parse(JSON.stringify(o));
-const STORE_KEY = 'twt-intro-gen-v7';
+const OLD_KEYS = ['v7', 'v6', 'v5', 'v4', 'v3', 'v2'].map(v => 'twt-intro-gen-' + v);
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
 
 // 이전 버전 데이터도 최대한 살려서 불러오기
@@ -438,9 +456,18 @@ function migrate(s) {
   const oc = s.cover || {}, nc = clone(DEFAULT.cover);
   if (!('type' in oc)) {
     if ('frost' in oc) Object.assign(nc, pick(oc, ['title', 'hint', 'cakeImg', 'sliceImg', 'fxImg', 'sx', 'sy', 'sw', 'sr', 'lift', 'candle']), { type: 'cake', cakeSize: oc.size || 400 });
-    else Object.assign(nc, pick(oc, ['image', 'blend', 'size', 'kicker', 'title', 'hint']), { type: 'heart' });
+    else Object.assign(nc, pick(oc, ['kicker', 'title', 'hint']), { type: 'cake' });
   } else Object.assign(nc, oc);
+  // 없어진 '하트 · 거울' 표지는 케이크로 (문구는 그대로 두되 하트 기본 문구였다면 케이크 문구로)
+  if (!COVER_DEFAULTS[nc.type]) {
+    if (nc.hint === '하트를 눌러주세요') nc.hint = COVER_DEFAULTS.cake.hint;
+    nc.type = 'cake';
+  }
+  ['image', 'blend', 'size', 'hz', 'holo1', 'holo2', 'holo3', 'bokeh', 'bubble', 'reflect', 'glint'].forEach(k => delete nc[k]);
   d.cover = nc;
+
+  d.lock = Object.assign(clone(DEFAULT.lock), d.lock);
+  d.lock.codes = (d.lock.codes || []).map((cd, i) => Object.assign({ id: 'c' + i, code: '', label: '', tabs: [] }, cd, { tabs: Array.isArray(cd.tabs) ? cd.tabs : [] }));
 
   d.labels = Object.assign(clone(DEFAULT.labels), d.labels);
   // 탭: 예전 고정 4개 → 종류가 있는 목록으로
@@ -462,8 +489,8 @@ function migrate(s) {
     a: charObj({ name: it.bot, platform: it.platform, creator: it.creator, link: it.link, image: it.image, desc: it.desc }),
     b: charObj({ name: it.user, prompt: it.prompt }),
   })) };
-  d.others = Object.assign({ cols: 1, showName: true, namePos: 'in', nameFont: 'body', groups: [], groupStyle: 'title', showAll: true, intro: '' }, o);
-  d.others.items = d.others.items.map(it => pairItem(it));
+  d.others = Object.assign({ cols: 1, showName: true, namePos: 'in', nameFont: 'body', showRole: true, detailStyle: 'card', groups: [], groupStyle: 'title', showAll: true, intro: '' }, o);
+  d.others.items = d.others.items.map(it => pairItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })));
 
   // 메인 페어: 하나였던 것을 목록으로
   if (s.main && !s.mains) {
@@ -481,7 +508,7 @@ function migrate(s) {
     d.mains = { cols: 1, intro: '', items: [one] };
   }
   delete d.main;
-  d.mains.items = d.mains.items.map(it => { const m = mainItem(it); delete m.textGlow; return m; });
+  d.mains.items = d.mains.items.map(it => { const m = mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })); delete m.textGlow; return m; });
 
   if (d.friends.items?.some(it => 'layout' in it)) {
     d.friends = { cols: d.friends.cols || 1, intro: d.friends.intro || '', items: d.friends.items.map(it => friendItem({ name: it.name, desc: it.desc, link: it.link, linkText: it.linkText })) };
@@ -489,15 +516,22 @@ function migrate(s) {
   d.friends.items = d.friends.items.map(it => { const f = friendItem(it); delete f.handle; return f; });
   return d;
 }
+// 자동 저장은 쓰지 않음 (사진이 많으면 브라우저 저장 공간을 크게 잡아먹음).
+// 예전에 자동 저장해 둔 내용이 있으면 마지막으로 한 번만 불러오고, 저장 공간은 비워 줌.
+let bootNote = '';
 let state = (() => {
+  let raw = null;
+  try { raw = OLD_KEYS.map(k => localStorage.getItem(k)).find(Boolean); } catch (_) {}
+  try { OLD_KEYS.forEach(k => localStorage.removeItem(k)); } catch (_) {}
+  if (!raw) return clone(DEFAULT);
   try {
-    const s = ['v7', 'v6', 'v5', 'v4', 'v3', 'v2'].map(v => localStorage.getItem('twt-intro-gen-' + v)).find(Boolean);
-    if (s) return migrate(JSON.parse(s));
-  } catch (e) {}
-  return clone(DEFAULT);
+    const restored = migrate(JSON.parse(raw));
+    bootNote = '예전에 브라우저에 자동 저장돼 있던 내용을 불러왔어요. 자동 저장은 이제 쓰지 않으니 (저장 공간을 너무 많이 차지해서), 위쪽 <b>저장</b> 버튼으로 .json 파일을 꼭 내려받아 주세요.';
+    return restored;
+  } catch (_) { return clone(DEFAULT); }
 })();
 // 편집기 · 미리보기의 현재 상태 — 재렌더링 시 유지
-let view = { edTab: 'cover', opened: false, tab: 0, flips: [], peek: false, sub: {} };
+let view = { edTab: 'cover', opened: false, tab: 0, flips: [], peek: false, sub: {}, lockTest: false };
 
 /* =========================================================
    유틸
@@ -639,49 +673,17 @@ function cakeCover(c) {
 }
 
 /* =========================================================
-   표지 ② 하트 · 홀로그램 거울
+   표지 ② 직접 만든 표지 (HTML 붙여넣기)
    ========================================================= */
-const FALLBACK_HEART = `<svg viewBox="0 0 100 100">
-  <defs>
-    <linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eaf6ff"/><stop offset=".55" stop-color="#a8d8f8"/><stop offset="1" stop-color="#5fb0ea"/></linearGradient>
-    <radialGradient id="hh" cx=".38" cy=".32" r=".55"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-  </defs>
-  <g transform="translate(0 6)">
-    <path d="M50 80C22 61 9 45 9 28 9 14 19 6 31 6c8 0 15 5 19 12 4-7 11-12 19-12 12 0 22 8 22 22 0 17-13 33-41 52Z" fill="url(#hg)" stroke="#fff" stroke-opacity=".8" stroke-width="1.5"/>
-    <path d="M50 80C22 61 9 45 9 28 9 14 19 6 31 6c8 0 15 5 19 12 4-7 11-12 19-12 12 0 22 8 22 22 0 17-13 33-41 52Z" fill="url(#hh)"/>
-    <ellipse cx="29" cy="22" rx="9" ry="4.5" fill="#fff" opacity=".85" transform="rotate(-32 29 22)"/>
-    <circle cx="68" cy="52" r="1.8" fill="#fff" opacity=".7"/><circle cx="60" cy="62" r="1.2" fill="#fff" opacity=".7"/><circle cx="40" cy="46" r="1.4" fill="#fff" opacity=".6"/>
-  </g>
-</svg>`;
+// class="enter" 를 넣은 요소가 있으면 그것만 입장 버튼, 없으면 표지 전체를 눌러 입장
+const hasEnter = h => /class\s*=\s*["'][^"']*\benter\b/.test(String(h || ''));
 
-function heartCover(c) {
-  // [x%, y%, 크기px, 흐림px, 투명도]
-  const bokeh = [[8,18,90,6,.5],[80,12,150,12,.4],[64,58,70,4,.45],[12,66,130,9,.35],[90,74,60,3,.55],[36,6,50,3,.5],[46,88,120,10,.35],[94,40,40,2,.6],[3,40,46,3,.45],[24,94,70,5,.4]];
-  // [x%, y%, 크기px, 지연s, 주기s, 흐림(앞쪽 초점 밖)]
-  const bubbles = [[12,26,54,0,6,0],[84,20,34,1,7,0],[76,66,78,2.5,8,3],[18,76,30,.5,6.5,0],[88,88,48,3,7.5,1.5],[6,52,22,1.5,5.5,0],[60,13,26,4,6,0],[30,50,18,2,5,0]];
-  const glints = [[18,20,40,0],[84,34,52,1.1],[70,80,32,2.2],[10,86,42,.6],[52,9,28,1.7],[93,60,34,2.8],[30,62,24,.3]];
-  const img = c.image ? `<img src="${c.image}" alt="" draggable="false">` : FALLBACK_HEART;
-  const blend = c.image && c.blend ? 'blend' : '';
-  const burst = Array.from({ length: 16 }, (_, i) =>
-    `<i class="${i % 3 ? 'pb' : 'pg'}" style="--a:${i * 22.5 + (i % 2) * 8}deg;--k:${(0.55 + (i % 4) * 0.08).toFixed(2)};--p:${i % 3 ? 10 + (i * 7) % 16 : 30}px"></i>`).join('');
-
-  return `<div class="cover cv-heart">
-    <div class="holo"></div>
-    ${c.bokeh ? bokeh.map(([x, y, s, b, o], i) => `<span class="bk ${i % 3 === 1 ? 'tint' : ''}" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;--b:${b}px;--o:${o};animation-delay:${-i * 1.3}s"></span>`).join('') : ''}
-    <div class="cv-body">
-      ${coverText(c)}
-      <div class="stage">
-        ${c.reflect ? '<div class="mirror"></div><div class="contact"></div>' : ''}
-        ${c.reflect ? `<div class="reflection ${blend}"><span class="rf">${img}</span></div>` : ''}
-        <button type="button" class="heart-btn enter" aria-label="들어가기">
-          <span class="heart-float ${blend}"><span class="heart-inner">${img}</span></span>
-        </button>
-        <div class="burst">${burst}</div>
-      </div>
-      ${coverHint(c)}
-    </div>
-    ${c.bubble ? bubbles.map(([x, y, s, dl, du, bl]) => `<span class="gb" style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;animation-delay:${-dl}s;animation-duration:${du}s;${bl ? `filter:blur(${bl}px)` : ''}"></span>`).join('') : ''}
-    ${c.glint ? glints.map(([x, y, s, dl]) => `<span class="gl" style="left:${x}%;top:${y}%;--s:${s}px;animation-delay:${dl}s"><i></i></span>`).join('') : ''}
+function customCover(c) {
+  const html = String(c.cHtml || '');
+  const open = hasEnter(html) ? '' : 'enter" role="button" tabindex="0" aria-label="들어가기';
+  return `<div class="cover cv-custom">
+    <div class="cv-html ${open}">${html || '<p class="cv-empty">표지 HTML을 넣어주세요</p>'}</div>
+    ${c.cHtmlText ? `<div class="cv-body cv-over">${coverText(c)}${coverHint(c)}</div>` : ''}
   </div>`;
 }
 
@@ -788,69 +790,14 @@ body.popping .cake-img .slice{transition:transform 1s cubic-bezier(.34,1.5,.5,1)
 .cake-img .fx{position:absolute;inset:0;width:100%;opacity:0;transform:scale(.85);transition:opacity .5s .35s,transform .7s .35s}
 body.popping .cake-img .fx{opacity:1;transform:none}`;
 
-  if (c.type === 'heart') return common + `
-.cv-heart{background:linear-gradient(180deg,${c.holo1} 0%,#f7fbff 52%,${c.holo2} 100%)}
-.cv-heart::before{content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.55) 40%,transparent 48%,transparent 58%,rgba(255,255,255,.35) 64%,transparent 70%);
-  background-size:250% 100%;animation:sheen 9s ease-in-out infinite}
-@keyframes sheen{0%,100%{background-position:100% 0}50%{background-position:0 0}}
-.holo{position:absolute;inset:-35%;opacity:.95;filter:blur(46px) saturate(1.25);animation:spin 28s linear infinite;
-  background:radial-gradient(38% 32% at 30% 32%,${c.holo2},transparent 70%),radial-gradient(34% 30% at 72% 42%,${c.holo3},transparent 70%),
-  radial-gradient(44% 34% at 50% 78%,${c.holo1},transparent 70%),
-  conic-gradient(from 90deg,rgba(255,214,240,.45),rgba(196,228,255,.5),rgba(205,255,236,.45),rgba(255,244,210,.4),rgba(255,214,240,.45))}
-@keyframes spin{to{transform:rotate(360deg)}}
-.bk{position:absolute;border-radius:50%;opacity:var(--o);filter:blur(var(--b));transform:translate(-50%,-50%);animation:bokeh 9s ease-in-out infinite alternate;
-  background:radial-gradient(circle,rgba(255,255,255,.18) 0 58%,rgba(255,255,255,.75) 68%,rgba(255,255,255,.2) 72%,transparent 74%)}
-.bk.tint{background:radial-gradient(circle,rgba(200,230,255,.3) 0 58%,rgba(235,215,255,.8) 68%,rgba(210,255,240,.3) 72%,transparent 74%)}
-@keyframes bokeh{to{transform:translate(-50%,-50%) translate(18px,-26px) scale(1.12)}}
-
-.stage{position:relative;width:min(72vw,var(--size));aspect-ratio:1;margin:18px 0 6px}
-.mirror{position:absolute;left:-100vw;right:-100vw;top:calc(var(--hz) * 1%);height:100vh;
-  background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.18) 18%,rgba(255,255,255,.08) 45%,rgba(255,255,255,.3));
-  box-shadow:0 -1px 0 rgba(255,255,255,1),0 -2px 12px rgba(255,255,255,.8),inset 0 1px 0 rgba(140,180,220,.25)}
-.contact{position:absolute;left:24%;right:24%;top:calc(var(--hz) * 1% - 7px);height:14px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(60,110,170,.3),transparent 70%);filter:blur(3px);animation:contact 3.6s ease-in-out infinite}
-@keyframes contact{50%{transform:scale(.78);opacity:.55}}
-.heart-btn{position:absolute;inset:0;cursor:pointer}
-.heart-float{display:block;animation:float 3.6s ease-in-out infinite}
-.blend{mix-blend-mode:multiply}
-@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-14px) rotate(3deg)}}
-.heart-inner{display:block;transition:transform .55s cubic-bezier(.3,1.9,.4,1)}
-.heart-btn:hover .heart-inner,.heart-btn:focus-visible .heart-inner{transform:scale(1.06)}
-.heart-btn:active .heart-inner{transform:scale(.94,.9)}
-.heart-inner img,.heart-inner svg,.rf img,.rf svg{width:100%;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
-body.popping .heart-float{animation-play-state:paused}
-body.popping .heart-inner{animation:squish 1s cubic-bezier(.3,.7,.4,1) forwards}
-@keyframes squish{0%{transform:scale(1)}22%{transform:scale(1.2,.8)}42%{transform:scale(.88,1.14)}60%{transform:scale(1.06,.95)}75%{transform:scale(1);opacity:1}100%{transform:scale(1.5);opacity:0}}
-.reflection{position:absolute;left:0;right:0;top:calc((var(--hz) * 2 - 100) * 1%);pointer-events:none;opacity:.5}
-.rf{display:block;filter:blur(1.5px);animation:floatR 3.6s ease-in-out infinite;
-  -webkit-mask-image:linear-gradient(to top,#000 0%,transparent 45%);mask-image:linear-gradient(to top,#000 0%,transparent 45%)}
-@keyframes floatR{0%,100%{transform:translateY(0) scaleY(-1) rotate(3deg)}50%{transform:translateY(14px) scaleY(-1) rotate(-3deg)}}
-body.popping .reflection,body.popping .contact{opacity:0;transition:opacity .4s}
-
-.gb{position:absolute;border-radius:50%;transform:translate(-50%,-50%);animation:gbFloat 6s ease-in-out infinite;pointer-events:none;
-  background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.95) 0 5%,rgba(255,255,255,.45) 9%,transparent 20%),
-    radial-gradient(circle at 68% 76%,rgba(255,255,255,.6) 0 3%,transparent 12%),
-    radial-gradient(circle,rgba(255,255,255,.04) 52%,rgba(170,210,255,.32) 80%,rgba(255,255,255,.75) 95%,transparent 100%);
-  box-shadow:inset -4px -8px 16px rgba(110,160,220,.22),inset 3px 4px 10px rgba(255,255,255,.55),0 14px 24px -14px rgba(70,110,170,.4)}
-.gb::after{content:"";position:absolute;inset:0;border-radius:50%;mix-blend-mode:screen;opacity:.9;
-  background:conic-gradient(from 200deg,rgba(255,150,220,.55),rgba(150,220,255,.55),rgba(160,255,210,.5),rgba(255,240,160,.5),rgba(255,150,220,.55));
-  -webkit-mask:radial-gradient(circle,transparent 64%,#000 78%,#000 94%,transparent 100%);mask:radial-gradient(circle,transparent 64%,#000 78%,#000 94%,transparent 100%)}
-@keyframes gbFloat{50%{transform:translate(-50%,-50%) translate(6px,-16px)}}
-.gl{position:absolute;width:var(--s);height:var(--s);margin:calc(var(--s) / -2);pointer-events:none;animation:glint 3.4s ease-in-out infinite}
-.gl::before,.gl::after{content:"";position:absolute;left:0;top:50%;width:100%;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,#fff 42%,#fff 58%,transparent);filter:blur(.4px)}
-.gl::after{transform:rotate(90deg)}
-.gl i{position:absolute;inset:32%;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,255,255,.6) 35%,transparent 72%);box-shadow:0 0 12px 4px rgba(255,255,255,.7)}
-@keyframes glint{0%,100%{opacity:0;transform:scale(.3) rotate(0)}50%{opacity:1;transform:scale(1) rotate(45deg)}}
-
-.burst{position:absolute;inset:0;pointer-events:none}
-.burst i{position:absolute;left:50%;top:50%;width:var(--p);height:var(--p);margin:calc(var(--p) / -2);opacity:0}
-.burst i.pb{border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff 0 12%,rgba(255,255,255,.2) 30%,rgba(170,215,255,.45) 78%,rgba(255,255,255,.85) 96%,transparent 100%)}
-.burst i.pg::before,.burst i.pg::after{content:"";position:absolute;left:0;top:50%;width:100%;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,#fff 45%,#fff 55%,transparent)}
-.burst i.pg::after{transform:rotate(90deg)}
-body.popping .burst i{animation:burst 1s .45s cubic-bezier(.15,.8,.3,1) forwards}
-@keyframes burst{0%{opacity:0;transform:rotate(var(--a)) translateY(0) scale(.3)}25%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateY(calc(min(72vw,var(--size)) * var(--k) * -1)) scale(1.1)}}
-.cv-heart h1{text-shadow:0 1px 0 rgba(255,255,255,.9),0 10px 34px rgba(110,160,220,.35)}`;
+  if (c.type === 'custom') return common + `
+.cv-custom{background:${c.cHtmlBg || '#eef4fb'};display:block}
+.cv-html{position:absolute;inset:0;overflow:auto;display:grid;place-items:center;text-align:initial}
+.cv-html.enter{cursor:pointer}
+.cv-html>*{max-width:100%}
+.cv-empty{opacity:.45;font:14px var(--sys);text-align:center}
+.cv-over{position:absolute;left:0;right:0;bottom:6%;pointer-events:none}
+body.popping .cv-html{transition:transform .8s ease,opacity .8s ease;transform:scale(1.05);opacity:.55}`;
 
   // dream
   const noise = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")`;
@@ -925,7 +872,7 @@ body.popping .flash{opacity:1;transition:opacity .7s .8s}`;
 }
 
 function coverHTML(c) {
-  return c.type === 'cake' ? cakeCover(c) : c.type === 'dream' ? dreamCover(c) : heartCover(c);
+  return c.type === 'dream' ? dreamCover(c) : c.type === 'custom' ? customCover(c) : cakeCover(c);
 }
 
 /* =========================================================
@@ -945,6 +892,7 @@ function charHTML(c, label, imgHTML = '', hideCopyName = false) {
       ${label ? `<p class="lbl">${esc(label)}</p>` : ''}
       <h3 ${!imgHTML && !hideCopyName ? `class="copyable copy-name" ${copyAttr(c.prompt)}` : ''}>${esc(c.name || '이름')}</h3>
       ${meta ? `<p class="meta">${meta}</p>` : ''}
+      ${c.with ? `<p class="meta mwith">${esc(c.with)}</p>` : ''}
       ${c.link ? `<a class="meta-lnk" href="${esc(c.link)}" target="_blank" rel="noopener">보러 가기 ↗</a>` : ''}
       ${c.desc ? `<p class="cd">${nl(c.desc)}</p>` : ''}
     </div>
@@ -1024,6 +972,9 @@ function mainsHTML(ms, labels) {
 function othersHTML(o, labels, uid = 'o') {
   if (!o.items.length) return `<p class="empty">아직 등록된 페어가 없어요</p>`;
   const nf = `nf-${esc(o.nameFont || 'body')}`;
+  // CHARACTER / USER 이름표 끄기
+  const lb = k => o.showRole === false ? '' : labels[k];
+  const ds = `ds-${esc(DETAIL_STYLES[o.detailStyle] ? o.detailStyle : 'card')}`;
   const side = (c, cls) => `<span class="side ${cls}">${c.image ? `<img src="${c.image}" alt="">` : ''}</span>`;
   const cap = p => `<span class="dp-nm">${esc(p.a.name || '캐릭터')}<i>×</i>${esc(p.b.name || '유저')}</span>`;
   const soloName = p => p.a.name || (p.role === 'b' ? '유저' : '캐릭터');
@@ -1072,14 +1023,18 @@ function othersHTML(o, labels, uid = 'o') {
     </div>
     ${o.items.map((p, i) => p.kind === 'solo' ? `
       <template id="pd-${uid}-${i}">
-        <h2 class="d-title ${nf}">${esc(soloName(p))}</h2>
-        <div class="cols solo">${charHTML(p.a, p.role === 'b' ? labels.b : labels.a, p.a.image ? `<img data-from="${i}-s" alt="">` : '')}</div>
+        <div class="dsheet ${ds}">
+          <h2 class="d-title ${nf}">${esc(soloName(p))}</h2>
+          <div class="cols solo">${charHTML(p.a, p.role === 'b' ? lb('b') : lb('a'), p.a.image ? `<img data-from="${i}-s" alt="">` : '')}</div>
+        </div>
       </template>` : `
       <template id="pd-${uid}-${i}">
-        <h2 class="d-title ${nf}">${esc(p.a.name)}<span class="px">×</span>${esc(p.b.name)}</h2>
-        <div class="cols">
-          ${charHTML(p.a, labels.a, p.a.image ? `<img data-from="${i}-l" alt="">` : '')}
-          ${charHTML(p.b, labels.b, p.b.image ? `<img data-from="${i}-r" alt="">` : '')}
+        <div class="dsheet ${ds}">
+          <h2 class="d-title ${nf}">${esc(p.a.name)}<span class="px">×</span>${esc(p.b.name)}</h2>
+          <div class="cols">
+            ${charHTML(p.a, lb('a'), p.a.image ? `<img data-from="${i}-l" alt="">` : '')}
+            ${charHTML(p.b, lb('b'), p.b.image ? `<img data-from="${i}-r" alt="">` : '')}
+          </div>
         </div>
       </template>`).join('')}`;
 }
@@ -1162,8 +1117,15 @@ function buildPage(d, init) {
     plus:  svg(18, '<path d="M10 4.5v11M4.5 10h11"/>'),
     tabs:  svg(18, '<rect x="3" y="6" width="10" height="10" rx="2"/><path d="M7 3.5h7.5A2 2 0 0116.5 5.5V13"/>'),
   };
-  const bodyCls = init.opened ? 'opened no-anim' : (c.type === 'cake' && init.peek) ? 'popping no-anim' : '';
-  const enterDelay = { cake: 1150, heart: 1250, dream: 1550 }[c.type] || 1200;
+  // 비밀번호 잠금 — 미리보기에서는 init.unlock 으로 건너뜀, 내보낸 파일에는 항상 들어감
+  const lk = Object.assign({ codes: [] }, d.lock);
+  const lkCodes = (lk.codes || []).filter(x => String(x.code || '').length).map(x => ({
+    h: fnv1a(String(x.code)),
+    t: (x.tabs || []).map(id => d.tabs.findIndex(t => t.id === id)).filter(i => i >= 0),
+  })).filter(x => x.t.length);
+  const locked = !!(lk.on && lkCodes.length && !init.unlock);
+  const bodyCls = [init.opened ? 'opened no-anim' : (c.type === 'cake' && init.peek) ? 'popping no-anim' : '', locked ? 'locked' : ''].filter(Boolean).join(' ');
+  const enterDelay = { cake: 1150, dream: 1550, custom: 700 }[c.type] || 1200;
 
   return `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
@@ -1172,7 +1134,7 @@ function buildPage(d, init) {
 <link rel="stylesheet" href="${fontLink(d)}">
 <style>
 :root{--accent:${t.accent};--text:${t.text};--card:${t.card};
-  --size:${Number(c.size) || 300}px;--hz:${Number(c.hz) || 84};--csize:${Number(c.cakeSize) || 400}px;
+  --csize:${Number(c.cakeSize) || 400}px;
   --sx:${c.sx}%;--sy:${c.sy}%;--sw:${c.sw}%;--sr:${c.sr}deg;--lift:${c.lift}%;--pic:100;
   --sys:-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
   --script:'Dancing Script','Nanum Pen Script',cursive}
@@ -1425,6 +1387,51 @@ body.no-anim section{animation:none}
 .x-btn{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;background:color-mix(in srgb,var(--text) 8%,transparent);font-size:15px;line-height:1}
 .d-title{font:500 30px/1.2 var(--script);margin:0 40px 14px;text-align:center}
 .d-title .px{font:400 14px var(--sys);color:var(--accent);margin:0 10px;vertical-align:.4em}
+.meta.mwith{opacity:.75}
+
+/* 서브 페어 상세 — 디자인 템플릿 */
+.ds-row .cols{grid-template-columns:1fr;gap:10px}
+.ds-row .cb{flex-direction:row;align-items:flex-start;gap:14px;padding:14px}
+.ds-row .cb-pic{width:88px;flex-shrink:0;margin:0;align-self:flex-start;border-radius:50%;aspect-ratio:1}
+.ds-row .cb-t{flex:1;min-width:0}
+
+.ds-poster .cols{gap:12px}
+.ds-poster .cb{position:relative;padding:0;border-radius:20px;overflow:hidden;min-height:250px;justify-content:flex-end;
+  background:color-mix(in srgb,var(--accent) 45%,#2b3441);box-shadow:0 12px 30px -16px rgba(20,50,80,.6)}
+.ds-poster .cb-pic{position:absolute;inset:0;width:100%;height:100%;margin:0;align-self:auto;border-radius:0;aspect-ratio:auto;background:none}
+.ds-poster .cb-pic img{width:100%;height:100%;object-fit:cover}
+.ds-poster .cb-t{position:relative;z-index:1;padding:64px 14px 14px;background:linear-gradient(transparent,rgba(8,18,32,.86) 46%)}
+.ds-poster .cb h3,.ds-poster .cb .cd,.ds-poster .cb .meta{color:#fff}
+.ds-poster .cb .lbl{color:#fff;opacity:.78}
+.ds-poster .cb .meta-lnk{color:#fff;text-decoration:underline}
+.ds-poster .copy-name{text-decoration-color:rgba(255,255,255,.6)}
+.ds-poster .cols.solo{grid-template-columns:minmax(0,320px)}
+
+.ds-frame .cols{gap:14px}
+.ds-frame .cb{background:#fff;border-radius:3px;padding:10px 10px 16px;box-shadow:0 12px 28px -14px rgba(20,50,80,.55),0 0 0 1px rgba(0,0,0,.04);transform:rotate(-1.3deg)}
+.ds-frame .cb:nth-child(2){transform:rotate(1.3deg)}
+.ds-frame .cb-pic{width:100%;margin-bottom:10px;border-radius:2px;aspect-ratio:1}
+.ds-frame .cb-t{align-items:center;text-align:center}
+.ds-frame .cb h3{font:500 26px/1.2 var(--script);margin:2px 0}
+.ds-frame .cb .cd{text-align:left}
+@media (max-width:600px){.ds-frame .cb,.ds-frame .cb:nth-child(2){transform:none}}
+
+/* 비밀번호 잠금 */
+.gate{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:var(--card);animation:fade .4s}
+.gate-box{width:min(100%,340px);text-align:center;display:grid;gap:10px;justify-items:center}
+.gate-box h2{margin:0;font-size:20px;line-height:1.4}
+.gate-box .g-hint{margin:0;font-size:13.5px;opacity:.6;white-space:pre-line}
+.gate-box .g-lock{font-size:34px;line-height:1;margin-bottom:2px;filter:saturate(.7)}
+.gate-in{display:flex;gap:8px;width:100%;margin-top:4px}
+.gate-in input{flex:1;min-width:0;font:inherit;font-size:16px;text-align:center;letter-spacing:.3em;padding:11px 14px;border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--text) 16%,transparent);background:color-mix(in srgb,var(--accent) 6%,var(--card));color:inherit}
+.gate-in input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.gate-in button{border:0;border-radius:999px;padding:0 20px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+.g-err{margin:2px 0 0;font-size:13px;color:#d9534a;min-height:1.2em}
+.gate.shake .gate-box{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-7px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+body.locked .chrome{filter:blur(2px);opacity:.5;pointer-events:none}
 @media (max-width:600px){
   .sheet{align-items:flex-end;padding:0}
   .sheet-card{border-radius:24px 24px 0 0;max-height:90%;padding:18px 12px 14px;transform:translateY(100%)}
@@ -1519,6 +1526,18 @@ ${coverHTML(c)}
   <div class="content" id="content"><div class="inner">
     ${d.tabs.map((tb, i) => `<section data-tab="${i}">${tabHTML(tb, d)}</section>`).join('')}
   </div></div>
+  ${locked ? `<div class="gate" id="gate">
+    <form class="gate-box" id="gateForm" autocomplete="off">
+      <div class="g-lock">🔒</div>
+      ${lk.title ? `<h2>${esc(lk.title)}</h2>` : ''}
+      ${lk.hint ? `<p class="g-hint">${esc(lk.hint)}</p>` : ''}
+      <div class="gate-in">
+        <input type="password" id="gateIn" inputmode="text" autocomplete="off" aria-label="비밀번호">
+        <button type="submit">확인</button>
+      </div>
+      <p class="g-err" id="gateErr"></p>
+    </form>
+  </div>` : ''}
 </div>
 
 <div class="sheet" id="sheet"><div class="sheet-card" id="sheetCard"><button type="button" class="x-btn" id="xBtn" aria-label="닫기">✕</button><div id="sheetBody"></div></div></div>
@@ -1554,6 +1573,35 @@ ${coverHTML(c)}
     notify({ tab: i });
   }
   document.querySelectorAll('.tab').forEach(function(a){ a.addEventListener('click', function(){ body.classList.remove('no-anim'); show(+a.dataset.tab); }); });
+
+  /* 비밀번호 — 맞는 비밀번호에 묶인 탭만 남기고 나머지는 지움 */
+  var gate = $('gate');
+  if (gate) {
+    var codes = ${safeJSON(lkCodes)};
+    var wrongMsg = ${safeJSON(lk.wrong || '비밀번호가 맞지 않아요')};
+    var fnv = function(str){ var h = 0x811c9dc5; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+    var unlock = function(allow){
+      document.querySelectorAll('.tab').forEach(function(a){ if (allow.indexOf(+a.dataset.tab) < 0) a.remove(); });
+      document.querySelectorAll('section').forEach(function(sec){ if (allow.indexOf(+sec.dataset.tab) < 0) sec.remove(); });
+      gate.remove(); gate = null;
+      body.classList.remove('locked');
+      show(allow[0]);
+    };
+    $('gateForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var h = fnv($('gateIn').value.trim()), hit = null;
+      for (var i = 0; i < codes.length; i++) if (codes[i].h === h) { hit = codes[i]; break; }
+      if (!hit) {
+        $('gateErr').textContent = wrongMsg;
+        gate.classList.add('shake');
+        setTimeout(function(){ gate && gate.classList.remove('shake'); }, 420);
+        $('gateIn').select();
+        return;
+      }
+      unlock(hit.t);
+    });
+    setTimeout(function(){ var g = $('gateIn'); g && g.focus(); }, 400);
+  }
 
   /* 표지 — 누르면 애니메이션 후 열림 */
   var busy = false;
@@ -1692,7 +1740,7 @@ const edKey = t => t.id;
 const edTabList = () => [
   ['theme', '🎨', '테마'], ['cover', '✨', '표지', -1], ['window', '🧭', '탭 관리'],
   ...state.tabs.map((t, i) => [edKey(t), t.icon || (BUILTIN_TABS[t.type] || PAGE_TEMPLATES[t.type] || {}).icon || '📄', t.name || '탭', i]),
-  ['deploy', '🚀', '배포'],
+  ['lock', '🔒', '비밀번호'], ['deploy', '🚀', '배포'],
 ];
 // 메인 페어 탭이 여러 개일 때, 미리보기의 카드 번호는 탭 순서대로 이어서 매겨짐
 function mainsOffset(B) {
@@ -1745,7 +1793,8 @@ function charEditor(path, title, { meta = true, imgLabel = '사진 (선택)' } =
     <p class="card-title">${title}</p>
     <div class="row">${text(`${path}.name`, '이름')}${imgField(`${path}.image`, imgLabel)}</div>
     ${meta ? `<div class="row">${text(`${path}.platform`, '플랫폼')}${text(`${path}.creator`, '제작자')}</div>
-    ${url(`${path}.link`, '링크 (선택)')}` : ''}
+    ${url(`${path}.link`, '링크 (선택)')}`
+      : text(`${path}.with`, '대화한 캐릭터 (선택)', '예: 캐릭터 A · 캐릭터 B')}
     ${area(`${path}.desc`, '소개글', 3)}
     ${area(`${path}.prompt`, '이미지 프롬프트 (선택 · 사진을 누르면 복사돼요)', 2)}
   </div>`;
@@ -1759,6 +1808,11 @@ function itemTitle(listPath, it) {
   }
   if ('linkText' in it) return `${it.emoji || ''} ${it.name || '이름 없음'}`.trim();
   return (it.title || it.q || (it.label ? `${it.emoji || ''} ${it.label}` : '') || it.caption || it.text || '항목').trim();
+}
+// 표지 지시문 미리보기 — 편집기를 다시 그리면 한글 조합이 깨지므로 글자만 갈아끼움
+function refreshPrompt() {
+  const el = document.querySelector('.pre-prompt');
+  if (el) el.textContent = coverPromptText(state.cover);
 }
 function refreshTitles() {
   document.querySelectorAll('details.item[data-sec]').forEach(d => {
@@ -1783,21 +1837,59 @@ function itemCard(listPath, i, len, title, bodyHTML, isOpen, accent, nav) {
   </details>`;
 }
 
+// AI에게 표지 HTML을 만들어 달라고 할 때 쓰는 지시문 — 기술 조건은 고정, [디자인]만 사용자가 채움
+function coverPromptText(c) {
+  const wish = String(c.cPrompt || '').trim();
+  return `아래 조건에 맞는 "웹페이지 표지(인트로 화면)" 한 장을 HTML로 만들어 주세요.
+설명 없이 코드 블록 하나로만 주세요.
+
+[출력 형식]
+- <html>, <head>, <body> 태그는 쓰지 말고, 표지 내용만 주세요.
+- CSS는 <style> 태그로, 움직임이 필요하면 <script> 태그로 같은 코드 안에 함께 넣어주세요.
+- 외부 파일(웹폰트·이미지·라이브러리)은 불러오지 마세요. 그림이 필요하면 CSS 그라데이션·도형,
+  이모지, 인라인 SVG 로 표현해 주세요.
+
+[꼭 지켜야 할 것]
+1. 어느 요소든 한 곳에 class="enter" 를 넣어주세요. 방문자가 그것을 누르면 페이지가 열립니다.
+   예: <button class="my-btn enter">들어가기</button>
+2. 이 코드는 이미 완성된 페이지 안에 그대로 끼워 넣어집니다. 스타일이 섞이지 않도록
+   모든 class 이름 앞에 my- 를 붙여주세요. (my-wrap, my-title …)
+   cover, hint, kicker, tag, tabs, win, cb, card, sub, desc, media, inner, enter
+   같은 이름은 이미 쓰고 있으니 단독으로 쓰지 마세요.
+   (enter 는 1번처럼 다른 class 와 같이 붙이는 것만 괜찮습니다.)
+3. 표지가 놓이는 칸은 화면 전체(가로·세로 100%)이고 내용은 기본으로 가운데 정렬됩니다.
+   화면 전체를 덮고 싶으면 position:absolute; inset:0 을 쓰세요.
+4. html, body 에는 스타일을 주지 마세요. 표지 안쪽만 꾸며주세요.
+5. 휴대폰 화면(가로 390px)에서도 깨지지 않아야 하고, 가로 스크롤이 생기면 안 됩니다.
+
+[알아두면 좋은 것]
+- 방문자가 누르면 body 에 popping → opened class 가 차례로 붙습니다.
+  들어갈 때 연출을 넣고 싶으면 body.popping .my-무엇 { … } 처럼 쓰면 됩니다.
+- 표지 전체는 0.8초에 걸쳐 저절로 사라지니, 사라지는 처리는 따로 하지 않아도 됩니다.
+
+[디자인]
+${wish || '(원하는 분위기·색·소재를 여기에 적어주세요. 예: 늦은 밤 창밖으로 눈이 내리는, 남색과 은색 위주의 조용한 느낌)'}`;
+}
+
 function coverPanel() {
   const c = state.cover;
   let fields;
-  if (c.type === 'heart') {
+  if (c.type === 'custom') {
     fields = `
-      ${imgField('cover.image', '하트 이미지')}
-      ${check('cover.blend', '이미지의 흰 배경 투명하게')}
-      <p class="hint">흰 배경이 있는 이미지면 켜두세요. 이미 배경이 투명한 PNG라면 꺼도 돼요.</p>
-      <div class="row">${range('cover.size', '크기', 160, 520, 'px')}${range('cover.hz', '거울 바닥 높이', 55, 100, '%')}</div>
-      <p class="grp">홀로그램 배경</p>
-      <div class="row3">${color('cover.holo1', '색 1')}${color('cover.holo2', '색 2')}${color('cover.holo3', '색 3')}</div>
-      <div class="checks">
-        ${check('cover.reflect', '거울 바닥 · 반사')}${check('cover.bokeh', '빛망울 (보케)')}
-        ${check('cover.bubble', '유리 방울')}${check('cover.glint', '반짝 빛')}
-      </div>`;
+      <p class="note">표지를 HTML로 직접 만들 수 있어요. <b>&lt;style&gt;</b>, <b>&lt;script&gt;</b>도 그대로 동작해요.
+        어떤 요소든 <b>class="enter"</b> 를 넣으면 그 요소를 눌렀을 때 페이지가 열려요. 없으면 표지 아무 곳이나 누르면 열려요.</p>
+      <div class="card">
+        <p class="card-title">🪄 AI에게 표지 만들어 달라고 하기</p>
+        ${area('cover.cPrompt', '어떤 표지를 원하나요 (이 부분만 지시문에 들어가요)', 3, '예: 늦은 밤 창밖으로 눈이 내리는, 남색과 은색 위주의 조용한 느낌')}
+        <button type="button" id="btnCopyPrompt" class="primary">📋 지시문 복사하기</button>
+        <p class="hint">복사한 글을 Claude · ChatGPT 같은 곳에 붙여넣으면 표지 HTML을 만들어 줘요.
+          받은 코드를 아래 칸에 그대로 붙여넣으면 바로 미리보기에 나와요.</p>
+        <details class="guide"><summary>지시문 미리 보기</summary><pre class="pre-prompt">${esc(coverPromptText(c))}</pre></details>
+      </div>
+      ${area('cover.cHtml', '표지 HTML', 14, '<div class="my-cover">\n  <h1>my page</h1>\n  <button class="enter">들어가기</button>\n</div>\n<style>\n  .my-cover { text-align: center }\n</style>')}
+      <div class="row">${color('cover.cHtmlBg', '표지 배경색')}${check('cover.cHtmlText', '아래 문구도 같이 얹기')}</div>
+      <p class="hint">본문 페이지와 같은 문서 안에서 보여지니, 클래스 이름은 <b>my-</b> 처럼 겹치지 않게 지어주세요.
+        이미지는 주소(https://…)를 넣거나 <b>data:</b> 형식으로 넣어야 내보낸 파일에서도 보여요.</p>`;
   } else if (c.type === 'dream') {
     fields = `
       <div class="row">${color('cover.dSky1', '하늘 (위)')}${color('cover.dSky2', '하늘 (지평선)')}</div>
@@ -2006,7 +2098,9 @@ function othersPanel(B, isOpen) {
       <div class="item-body">
         <div class="row">${colsSelect(B + '.cols', '개')}${select(B + '.namePos', '이름 위치', { in: '알약 안 아래쪽', below: '알약 바로 밑' })}</div>
         <div class="row">${select(B + '.nameFont', '이름 글꼴', { body: '본문 글꼴', serif: '명조', script: '필기체' })}${check(B + '.showName', '알약에 이름 표시')}</div>
+        ${check(B + '.showRole', `이름 위에 '${esc(L.a)} · ${esc(L.b)}' 이름표 표시`)}
         ${text(B + '.intro', '탭 상단 문구 (선택)')}
+        <div class="f">눌렀을 때 보이는 상세 디자인${picker(B + '.detailStyle', DETAIL_STYLES)}</div>
         <p class="hint">필기체는 영문이 가장 예쁘게 나와요. 한글은 손글씨체로 보여요.</p>
       </div>
     </details>
@@ -2036,6 +2130,43 @@ function friendsPanel(B, isOpen) {
     <button type="button" class="add" data-additem="${B}" data-type="friends">+ 트친 추가</button>`;
 }
 
+function lockPanel() {
+  const K = state.lock, tabs = state.tabs;
+  const codeCard = (cd, i, len) => `
+    <div class="card">
+      <div class="grp-row">
+        <input type="text" data-path="lock.codes.${i}.code" value="${esc(cd.code)}" placeholder="비밀번호 (예: 0000)">
+        <button type="button" class="ghost" data-move="lock.codes" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="ghost" data-move="lock.codes" data-i="${i}" data-dir="1" ${i === len - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="ghost danger" data-del="lock.codes" data-i="${i}">✕</button>
+      </div>
+      ${text(`lock.codes.${i}.label`, '메모 (선택 · 완성된 페이지에는 안 보여요)')}
+      <div class="f">이 비밀번호로 볼 수 있는 탭
+        <div class="subtabs">${tabs.map(tb => `
+          <button type="button" class="subtab ${(cd.tabs || []).includes(tb.id) ? 'on' : ''}" data-ltoggle="${i}" data-tid="${esc(tb.id)}">${esc(tb.icon || '📄')} ${esc(tb.name || '탭')}</button>`).join('')}
+        </div>
+      </div>
+      ${!(cd.tabs || []).length ? '<p class="hint">탭을 하나도 고르지 않으면 이 비밀번호는 없는 것으로 쳐요.</p>' : ''}
+      ${!String(cd.code || '').length ? '<p class="hint">비밀번호를 비워두면 이 줄은 무시돼요.</p>' : ''}
+    </div>`;
+
+  return `
+    <p class="note">표지를 연 다음 비밀번호 칸이 나오고, 맞는 비밀번호를 넣어야 내용이 보여요.
+      비밀번호마다 <b>보여줄 탭</b>을 따로 정할 수 있어서, 계정이 여러 개라면 프로필 탭만 바꿔 끼우는 식으로 쓸 수 있어요.</p>
+    ${check('lock.on', '비밀번호 잠금 사용')}
+    ${!K.on ? '<p class="hint">꺼두면 표지를 열자마자 모든 탭이 보여요.</p>' : `
+      <div class="row">${text('lock.title', '잠금 화면 제목')}${text('lock.wrong', '틀렸을 때 문구')}</div>
+      ${area('lock.hint', '잠금 화면 안내 문구 (선택)', 2)}
+      <p class="grp">비밀번호 ${K.codes.length}개</p>
+      ${K.codes.map((cd, i, arr) => codeCard(cd, i, arr.length)).join('')}
+      ${K.codes.length ? '' : '<p class="hint">비밀번호를 하나도 넣지 않으면 잠금이 동작하지 않아요.</p>'}
+      <button type="button" class="add" data-addcode>+ 비밀번호 추가</button>
+      <button type="button" id="btnLockTest" class="${view.lockTest ? 'on' : ''}">${view.lockTest ? '✓ 잠금 화면 보는 중 (누르면 풀고 편집)' : '🔒 미리보기에서 잠금 화면 확인하기'}</button>
+      <p class="hint">편집 중에는 잠금을 풀어둔 상태로 보여줘요. 내보내거나 사이트에 올린 파일에는 항상 잠금이 들어가요.</p>
+      <p class="note">⚠️ 비밀번호 자체는 알아보기 어렵게 바꿔서 넣지만, <b>가려진 탭의 내용은 파일 안에 그대로 들어있어요.</b>
+        마음먹고 파일을 뜯어보면 볼 수 있으니, 정말 숨겨야 하는 내용에는 쓰지 마세요. 가볍게 나눠 보여주는 용도예요.</p>`}`;
+}
+
 function renderEdTabs() {
   $('#edTabs').innerHTML = edTabList().map(([k, ic, label]) =>
     `<button type="button" class="ed-tab ${view.edTab === k ? 'on' : ''}" data-edtab="${esc(k)}" title="${esc(label)}"><span class="ic">${esc(ic)}</span><span class="lb">${esc(label)}</span></button>`).join('');
@@ -2054,9 +2185,12 @@ function tabsPanel() {
         <input type="text" data-path="tabs.${i}.icon" value="${esc(tb.icon)}" title="아이콘 (이모지)">
         <input type="text" data-path="tabs.${i}.name" value="${esc(tb.name)}" placeholder="탭 이름">
         <span class="badge">${esc(typeName(tb))}</span>
-        <button type="button" class="ghost" data-move="tabs" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
-        <button type="button" class="ghost" data-move="tabs" data-i="${i}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''}>↓</button>
-        <button type="button" class="ghost danger" data-deltab="${i}" ${arr.length <= 1 ? 'disabled' : ''}>삭제</button>
+        <div class="tr-btns">
+          <button type="button" class="ghost" data-move="tabs" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" class="ghost" data-move="tabs" data-i="${i}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" data-duptab="${i}" ${full ? 'disabled' : ''} title="내용까지 그대로 복제">⧉ 복제</button>
+          <button type="button" class="ghost danger" data-deltab="${i}" ${arr.length <= 1 ? 'disabled' : ''}>삭제</button>
+        </div>
       </div>`).join('')}
     <p class="grp">탭 추가 · 템플릿</p>
     <div class="tpls">
@@ -2065,6 +2199,7 @@ function tabsPanel() {
           <span class="ic">${t.icon}</span><b>${esc(t.name)}</b><small>${esc(t.desc)}</small></button>`;
       }).join('')}
     </div>
+    <p class="hint">⧉ 복제를 누르면 내용까지 그대로 복사한 탭이 바로 뒤에 생겨요. 비밀번호를 쓰고 있다면 원본과 같은 비밀번호에 묶여요.</p>
     <p class="hint">같은 종류 탭도 여러 개 만들 수 있고, 탭마다 내용이 따로 저장돼요. 처음부터 있던 기본 탭은 삭제해도 내용이 남아서 다시 추가하면 돌아오고, 새로 추가한 탭은 삭제하면 내용도 지워져요 (↶ 되돌리기 가능).</p>`;
 }
 
@@ -2138,6 +2273,7 @@ function renderEditor(resetScroll = false) {
       <p class="hint">블록마다 포인트 색을 따로 정하고 싶다면 각 탭의 항목 안에서 '포인트 색 (이 블록만)'을 바꿔주세요.</p>`],
     cover: () => ['✨ 표지', COVER_TYPES[state.cover.type]?.label, coverPanel()],
     window: () => ['🧭 탭 관리', `${state.tabs.length}개`, tabsPanel()],
+    lock: () => ['🔒 비밀번호', state.lock.on ? `${state.lock.codes.length}개` : '꺼짐', lockPanel()],
     deploy: () => ['🚀 사이트에 올리기', 'GitHub Pages', deployPanel()],
   };
   const tb = state.tabs.find(t => t.id === view.edTab);
@@ -2157,6 +2293,7 @@ function renderEditor(resetScroll = false) {
   }
   $('#edScroll').innerHTML = `<div class="panel">
     <div class="panel-head"><h2>${title}</h2>${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</div>
+    ${bootNote ? `<p class="note">${bootNote} <button type="button" class="ghost" data-shutnote>알겠어요</button></p>` : ''}
     ${html}
   </div>`;
   forceOpen.clear();
@@ -2257,8 +2394,9 @@ async function loadFromGitHub() {
     if (!res.ok) return setDeploy('err', ghError({ status: res.status, data: await res.json().catch(() => null) }));
     const data = JSON.parse(await res.text());
     state = migrate(data);
-    view.flips = []; view.tab = 0;
+    view.flips = []; view.tab = 0; view.sub = {};
     update({ editor: true });
+    markDirty(false); bootNote = '';
     setDeploy('ok', 'GitHub에 올려둔 내용을 불러왔어요. 이어서 편집하고 다시 올리면 돼요.');
   } catch (e) {
     setDeploy('err', '불러오지 못했어요. (' + e.message + ')');
@@ -2292,6 +2430,7 @@ async function runDeploy() {
         ? 'GitHub Pages도 켰어요. 처음에는 주소가 열리기까지 1~3분 걸려요.'
         : 'GitHub Pages가 아직 꺼져 있어요. 저장소 Settings → Pages에서 Branch를 main / (root)로 저장해주세요.';
     }
+    markDirty(false); bootNote = '';
     setDeploy('ok', `올렸어요! ${note}`, siteUrl(c));
   } catch (e) {
     setDeploy('err', '올리지 못했어요. 인터넷 연결을 확인해주세요. (' + e.message + ')');
@@ -2351,7 +2490,12 @@ function deployPanel() {
    미리보기 갱신 / 저장
    ========================================================= */
 let renderTimer;
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* 용량 초과 시 무시 */ } }
+// 미리보기는 잠금을 풀어서 보여주고 (lockTest 를 켜면 잠금 화면 확인), 내보내기·배포에는 잠금이 들어감
+const pvInit = () => Object.assign({}, view, { unlock: !view.lockTest });
+// 저장하지 않은 변경이 있는지 — 자동 저장을 하지 않으므로 티가 나게 표시
+let dirty = false;
+function markDirty(v) { dirty = v; $('#btnSave').classList.toggle('dirty', v); }
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 /* 되돌리기 · 다시 실행 — 입력이 멈춘 뒤 한 번씩 스냅샷 저장 */
 const undoStack = [], redoStack = [];
 let lastSnap = JSON.stringify(state), snapTimer = null;
@@ -2375,18 +2519,20 @@ function restore(from, to) {
   state = JSON.parse(lastSnap);
   view.flips = [];
   syncUndoButtons();
+  markDirty(true);
   renderEditor();
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => { $('#pv').srcdoc = buildPage(state, view); save(); }, 50);
+  renderTimer = setTimeout(() => { $('#pv').srcdoc = buildPage(state, pvInit()); }, 50);
 }
 const undo = () => restore(undoStack, redoStack);
 const redo = () => restore(redoStack, undoStack);
 
 function update({ editor = false } = {}) {
   commit();
+  markDirty(true);
   if (editor) renderEditor();
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => { $('#pv').srcdoc = buildPage(state, view); save(); }, 150);
+  renderTimer = setTimeout(() => { $('#pv').srcdoc = buildPage(state, pvInit()); }, 150);
 }
 const send = msg => $('#pv').contentWindow?.postMessage(msg, '*');
 
@@ -2417,7 +2563,7 @@ $('#edTabs').addEventListener('click', e => { const b = e.target.closest('[data-
 /* ---------- 이벤트 ---------- */
 const ed = $('#edScroll');
 // 슬라이더 값은 미리보기를 다시 그리지 않고 바로 반영 (깜빡임 방지)
-const LIVE = /^cover\.(size|hz|cakeSize|sx|sy|sw|sr|lift)$/;
+const LIVE = /^cover\.(cakeSize|sx|sy|sw|sr|lift)$/;
 const PIC = /^(.+)\.items\.(\d+)\.picSize$/;
 
 function onField(e) {
@@ -2433,19 +2579,20 @@ function onField(e) {
   }
   if (LIVE.test(path)) {
     const c = state.cover;
-    send({ __cmd: 'vars', vars: { '--size': c.size + 'px', '--hz': c.hz, '--csize': c.cakeSize + 'px', '--sx': c.sx + '%', '--sy': c.sy + '%', '--sw': c.sw + '%', '--sr': c.sr + 'deg', '--lift': c.lift + '%' } });
-    clearTimeout(renderTimer); renderTimer = setTimeout(save, 300);
+    send({ __cmd: 'vars', vars: { '--csize': c.cakeSize + 'px', '--sx': c.sx + '%', '--sy': c.sy + '%', '--sw': c.sw + '%', '--sr': c.sr + 'deg', '--lift': c.lift + '%' } });
+    clearTimeout(renderTimer);
     return commit();
   }
   const pm = path.match(PIC);
   if (pm && state.tabs.some(t => t.type === 'mains' && dataPath(t) === pm[1])) {
     send({ __cmd: 'pic', i: mainsOffset(pm[1]) + +pm[2], v });
-    clearTimeout(renderTimer); renderTimer = setTimeout(save, 300);
+    clearTimeout(renderTimer);
     return commit();
   }
   // 입력 중에 편집기를 다시 그리면 한글 조합이 깨지므로, 목록 제목 글자만 따로 갱신
-  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
+  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || path === 'lock.on' || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
   else refreshTitles();
+  if (path === 'cover.cPrompt') refreshPrompt();
   if (/^tabs\.\d+\.(name|icon)$/.test(path)) renderEdTabs();
   update();
 }
@@ -2458,9 +2605,30 @@ ed.addEventListener('input', e => {
   saveDeployCfg();
 });
 
+// 편집기에서 글 복사 (clipboard 가 막히면 예전 방식으로)
+function copyToClipboard(text, btn) {
+  const label = btn.textContent;
+  const done = ok => {
+    btn.textContent = ok ? '✓ 복사했어요' : '복사하지 못했어요';
+    setTimeout(() => { btn.textContent = label; }, 1800);
+  };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); done(ok);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => done(true), fallback);
+  else fallback();
+}
+
 ed.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
+  if (b.id === 'btnCopyPrompt') return copyToClipboard(coverPromptText(state.cover), b);
   if (b.id === 'dpCheck') return checkDeploy();
   if (b.id === 'dpGo') return runDeploy();
   if (b.id === 'dpLoad') return loadFromGitHub();
@@ -2487,9 +2655,36 @@ ed.addEventListener('click', e => {
     update();
     return goEdTab(edKey(tb));
   }
+  if (d.duptab !== undefined) {
+    if (state.tabs.length >= MAX_TABS) return;
+    const src = state.tabs[+d.duptab], id = 'p' + Date.now().toString(36);
+    state.pages[id] = clone(getPath(state, dataPath(src)) || {});
+    const tb = { id, type: src.type, name: `${src.name || '탭'} 복사`, icon: src.icon };
+    state.tabs.splice(+d.duptab + 1, 0, tb);
+    // 원본이 보이던 비밀번호에서는 복제한 탭도 같이 보이게
+    state.lock.codes.forEach(cd => { if ((cd.tabs || []).includes(src.id)) cd.tabs.push(id); });
+    view.flips = [];
+    update();
+    return goEdTab(id);
+  }
+  if (d.addcode !== undefined) {
+    state.lock.codes.push({ id: 'c' + Date.now().toString(36), code: '', label: '', tabs: state.tabs.map(t => t.id) });
+    return update({ editor: true });
+  }
+  if (d.ltoggle !== undefined) {
+    const cd = state.lock.codes[+d.ltoggle];
+    if (!cd) return;
+    cd.tabs = (cd.tabs || []).includes(d.tid) ? cd.tabs.filter(x => x !== d.tid) : [...(cd.tabs || []), d.tid];
+    return update({ editor: true });
+  }
+  if (b.id === 'btnLockTest') {
+    view.lockTest = !view.lockTest;
+    return update({ editor: true });
+  }
   if (d.deltab !== undefined) {
     const [tb] = state.tabs.splice(+d.deltab, 1);
     if (tb && tb.id !== tb.type) delete state.pages[tb.id];
+    if (tb) state.lock.codes.forEach(cd => { cd.tabs = (cd.tabs || []).filter(x => x !== tb.id); });
     view.tab = Math.min(view.tab, state.tabs.length - 1); view.flips = [];
     return update({ editor: true });
   }
@@ -2533,6 +2728,7 @@ ed.addEventListener('click', e => {
     send({ __cmd: 'peek', on: view.peek });
     return renderEditor();
   }
+  if (d.shutnote !== undefined) { bootNote = ''; return renderEditor(); }
   if (d.pick) return ed.querySelector(`input[data-file="${CSS.escape(d.pick)}"]`).click();
   if (d.clear) { setPath(state, d.clear, ''); return update({ editor: true }); }
   if (d.del) {
@@ -2622,7 +2818,7 @@ $('#btnCover').onclick = () => { view.opened = false; view.peek = false; send({ 
 
 $('#btnReset').onclick = () => {
   if (!confirm('모든 내용을 기본값으로 되돌릴까요?')) return;
-  state = clone(DEFAULT); view = { edTab: view.edTab, opened: false, tab: 0, flips: [], peek: false, sub: {} };
+  state = clone(DEFAULT); view = { edTab: view.edTab, opened: false, tab: 0, flips: [], peek: false, sub: {}, lockTest: false };
   update({ editor: true });
 };
 
@@ -2638,16 +2834,21 @@ $('#btnDeploy').onclick = () => {
   if (view.edTab !== 'deploy') goEdTab('deploy');
   if (deployReady()) runDeploy();
 };
-$('#btnSave').onclick = () => download('intro-project.json', JSON.stringify(state), 'application/json');
+$('#btnSave').onclick = () => {
+  download('intro-project.json', JSON.stringify(state), 'application/json');
+  bootNote = ''; markDirty(false); renderEditor();
+};
 $('#btnLoad').onclick = () => $('#loadFile').click();
 $('#loadFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { state = migrate(JSON.parse(await f.text())); view.flips = []; update({ editor: true }); }
+  try { state = migrate(JSON.parse(await f.text())); view.flips = []; view.sub = {}; update({ editor: true }); markDirty(false); bootNote = ''; }
   catch (_) { alert('불러올 수 없는 파일이에요.'); }
   e.target.value = '';
 };
 
 update({ editor: true });
+// 처음 켰을 때는 저장할 것이 없음 (예전 자동 저장분을 불러온 경우만 저장 필요)
+markDirty(!!bootNote);
 </script>
 </body>
 </html>
