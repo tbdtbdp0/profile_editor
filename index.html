@@ -2057,7 +2057,7 @@ function setDeploy(kind, msg, url = '') {
   deployStatus = { kind, msg, url };
   const box = $('#dpStatus');
   if (box) box.outerHTML = deployStatusHTML();
-  document.querySelectorAll('#dpGo, #dpCheck, #btnDeploy').forEach(b => { b.disabled = kind === 'busy'; });
+  document.querySelectorAll('#dpGo, #dpCheck, #dpLoad, #btnDeploy').forEach(b => { b.disabled = kind === 'busy'; });
 }
 
 async function checkDeploy() {
@@ -2074,25 +2074,60 @@ async function checkDeploy() {
   }
 }
 
+// 편집용 프로젝트 파일: 페이지 파일과 같은 폴더의 intro-project.json
+const projectPath = c => c.path.replace(/[^/]*$/, '') + 'intro-project.json';
+const encPath = path => path.split('/').map(encodeURIComponent).join('/');
+
+// 파일 하나를 올리기 (이미 있으면 덮어쓰기)
+async function ghPutFile(repoPath, branch, path, text, message) {
+  const cur = await gh('GET', `${repoPath}/contents/${encPath(path)}?ref=${encodeURIComponent(branch)}`);
+  if (!cur.ok && cur.status !== 404) return cur;
+  return gh('PUT', `${repoPath}/contents/${encPath(path)}`, {
+    message, content: b64utf8(text), branch,
+    ...(cur.ok && cur.data?.sha ? { sha: cur.data.sha } : {}),
+  });
+}
+
+async function loadFromGitHub() {
+  const c = cfgTrim();
+  if (!deployReady()) return setDeploy('err', '아이디, 저장소 이름, 토큰을 모두 입력해주세요.');
+  if (!confirm('GitHub에 올려둔 내용으로 지금 편집 중인 내용을 바꿀까요?\n(바꾼 뒤에도 ↶ 되돌리기로 돌아올 수 있어요)')) return;
+  const repoPath = `/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`;
+  try {
+    setDeploy('busy', 'GitHub에서 불러오는 중…');
+    // raw 형식으로 받으면 1MB가 넘는 파일도 그대로 받아짐
+    const res = await fetch(`https://api.github.com${repoPath}/contents/${encPath(projectPath(c))}?ref=${encodeURIComponent(c.branch)}`, {
+      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' },
+    });
+    if (res.status === 404) return setDeploy('err', `저장소에 편집용 파일(${projectPath(c)})이 없어요. 이 기능을 넣기 전에 올린 페이지라면, 지금 내용으로 한 번 다시 올린 뒤부터 불러올 수 있어요.`);
+    if (!res.ok) return setDeploy('err', ghError({ status: res.status, data: await res.json().catch(() => null) }));
+    const data = JSON.parse(await res.text());
+    state = migrate(data);
+    view.flips = []; view.tab = 0;
+    update({ editor: true });
+    setDeploy('ok', 'GitHub에 올려둔 내용을 불러왔어요. 이어서 편집하고 다시 올리면 돼요.');
+  } catch (e) {
+    setDeploy('err', '불러오지 못했어요. (' + e.message + ')');
+  }
+}
+
 async function runDeploy() {
   const c = cfgTrim();
   if (!deployReady()) return setDeploy('err', '아이디, 저장소 이름, 토큰을 모두 입력해주세요.');
   const repoPath = `/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`;
-  const filePath = c.path.split('/').map(encodeURIComponent).join('/');
   try {
     setDeploy('busy', '페이지를 만드는 중…');
     const html = buildPage(state, { opened: false, tab: 0 });
 
-    setDeploy('busy', `GitHub에 올리는 중… (${(html.length / 1048576).toFixed(1)}MB)`);
-    const cur = await gh('GET', `${repoPath}/contents/${filePath}?ref=${encodeURIComponent(c.branch)}`);
-    if (!cur.ok && cur.status !== 404) return setDeploy('err', ghError(cur));
-    const put = await gh('PUT', `${repoPath}/contents/${filePath}`, {
-      message: `자기소개 페이지 업데이트 (${new Date().toLocaleString('ko-KR')})`,
-      content: b64utf8(html),
-      branch: c.branch,
-      ...(cur.ok && cur.data?.sha ? { sha: cur.data.sha } : {}),
-    });
+    const stamp = new Date().toLocaleString('ko-KR');
+    setDeploy('busy', `페이지 올리는 중… (${(html.length / 1048576).toFixed(1)}MB)`);
+    const put = await ghPutFile(repoPath, c.branch, c.path, html, `자기소개 페이지 업데이트 (${stamp})`);
     if (!put.ok) return setDeploy('err', ghError(put));
+
+    // 다른 곳에서도 이어서 편집할 수 있도록 편집용 파일도 함께 올림 (배포 설정·토큰은 들어가지 않음)
+    setDeploy('busy', '편집용 파일 올리는 중…');
+    const proj = await ghPutFile(repoPath, c.branch, projectPath(c), JSON.stringify(state), `편집용 파일 업데이트 (${stamp})`);
+    if (!proj.ok) return setDeploy('err', '페이지는 올렸지만 편집용 파일은 올리지 못했어요. ' + ghError(proj));
 
     // GitHub Pages 가 꺼져 있으면 켜보기 (토큰에 Pages 권한이 없으면 안내만)
     let note = '반영까지 보통 1분쯤 걸려요.';
@@ -2122,6 +2157,8 @@ function deployPanel() {
       <button type="button" id="dpCheck">연결 확인</button>
       <button type="button" id="dpGo" class="primary">🚀 사이트에 올리기</button>
     </div>
+    <button type="button" id="dpLoad">⬇ GitHub에 올려둔 내용 불러와서 이어 편집하기</button>
+    <p class="hint">올릴 때 편집용 파일(<b>${esc(projectPath(cfgTrim()))}</b>)도 같이 올라가요. 다른 컴퓨터나 브라우저에서도 같은 저장소와 토큰만 입력하면 불러와서 이어서 편집할 수 있어요.</p>
     ${deployStatusHTML()}
     ${c.owner.trim() && c.repo.trim() ? `<p class="hint">내 사이트 주소: <b>${esc(siteUrl(cfgTrim()))}</b></p>` : ''}
     ${c.token ? `<button type="button" class="ghost danger" id="dpForget">이 브라우저에서 토큰 지우기</button>` : ''}
@@ -2272,6 +2309,7 @@ ed.addEventListener('click', e => {
   if (!b) return;
   if (b.id === 'dpCheck') return checkDeploy();
   if (b.id === 'dpGo') return runDeploy();
+  if (b.id === 'dpLoad') return loadFromGitHub();
   if (b.id === 'dpForget') { deployCfg.token = ''; saveDeployCfg(); setDeploy('', ''); return renderEditor(); }
   if (b.closest('summary')) e.preventDefault();
   const d = b.dataset;
