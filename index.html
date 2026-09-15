@@ -1417,21 +1417,29 @@ body.no-anim section{animation:none}
 @media (max-width:600px){.ds-frame .cb,.ds-frame .cb:nth-child(2){transform:none}}
 
 /* 비밀번호 잠금 */
-.gate{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;padding:24px;
-  background:var(--card);animation:fade .4s}
-.gate-box{width:min(100%,340px);text-align:center;display:grid;gap:10px;justify-items:center}
-.gate-box h2{margin:0;font-size:20px;line-height:1.4}
-.gate-box .g-hint{margin:0;font-size:13.5px;opacity:.6;white-space:pre-line}
-.gate-box .g-lock{font-size:34px;line-height:1;margin-bottom:2px;filter:saturate(.7)}
-.gate-in{display:flex;gap:8px;width:100%;margin-top:4px}
-.gate-in input{flex:1;min-width:0;font:inherit;font-size:16px;text-align:center;letter-spacing:.3em;padding:11px 14px;border-radius:999px;
-  border:1px solid color-mix(in srgb,var(--text) 16%,transparent);background:color-mix(in srgb,var(--accent) 6%,var(--card));color:inherit}
-.gate-in input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
-.gate-in button{border:0;border-radius:999px;padding:0 20px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
-.g-err{margin:2px 0 0;font-size:13px;color:#d9534a;min-height:1.2em}
+.gate{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;padding:26px;
+  background:var(--card);animation:fade .45s}
+.gate-box{width:min(100%,286px);text-align:center;display:block}
+.g-ico{width:40px;height:40px;margin:0 auto 15px;border-radius:50%;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--accent) 11%,transparent);color:var(--accent)}
+.g-ico svg{width:19px;height:19px;display:block}
+.gate-box h2{margin:0;font-size:15px;font-weight:600;line-height:1.55;letter-spacing:-.01em}
+.g-hint{margin:6px 0 0;font-size:12.5px;line-height:1.65;opacity:.5;white-space:pre-line}
+#gateIn{display:block;width:100%;margin:20px 0 0;font:inherit;font-size:16px;text-align:center;padding:12px 14px;
+  border-radius:13px;border:1px solid color-mix(in srgb,var(--text) 13%,transparent);
+  background:color-mix(in srgb,var(--text) 3%,var(--card));color:inherit;
+  transition:border-color .2s,box-shadow .2s,background .2s}
+#gateIn::placeholder{opacity:.3}
+#gateIn:focus{outline:none;background:var(--card);border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+.g-go{display:block;width:100%;margin:8px 0 0;border:0;border-radius:13px;padding:12px;cursor:pointer;
+  background:var(--accent);color:#fff;font:inherit;font-size:14px;font-weight:600;letter-spacing:.01em;
+  transition:filter .2s,transform .08s}
+.g-go:hover{filter:brightness(1.06)}
+.g-go:active{transform:translateY(1px)}
+.g-err{margin:11px 0 0;font-size:12.5px;line-height:1.4;color:#d9534a;min-height:1.1em}
 .gate.shake .gate-box{animation:shake .4s}
 @keyframes shake{25%{transform:translateX(-7px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
-body.locked .chrome{filter:blur(2px);opacity:.5;pointer-events:none}
 @media (max-width:600px){
   .sheet{align-items:flex-end;padding:0}
   .sheet-card{border-radius:24px 24px 0 0;max-height:90%;padding:18px 12px 14px;transform:translateY(100%)}
@@ -1528,13 +1536,12 @@ ${coverHTML(c)}
   </div></div>
   ${locked ? `<div class="gate" id="gate">
     <form class="gate-box" id="gateForm" autocomplete="off">
-      <div class="g-lock">🔒</div>
+      <div class="g-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4.75" y="10.25" width="14.5" height="9.5" rx="3"/><path d="M8.5 10.25V7.75a3.5 3.5 0 017 0v2.5"/><path d="M12 14.25v1.75"/></svg></div>
       ${lk.title ? `<h2>${esc(lk.title)}</h2>` : ''}
       ${lk.hint ? `<p class="g-hint">${esc(lk.hint)}</p>` : ''}
-      <div class="gate-in">
-        <input type="password" id="gateIn" inputmode="text" autocomplete="off" aria-label="비밀번호">
-        <button type="submit">확인</button>
-      </div>
+      <input type="password" id="gateIn" inputmode="text" autocomplete="off" aria-label="비밀번호">
+      <button type="submit" class="g-go">들어가기</button>
       <p class="g-err" id="gateErr"></p>
     </form>
   </div>` : ''}
