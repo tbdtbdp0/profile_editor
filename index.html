@@ -6,149 +6,213 @@
 <title>자기소개 페이지 생성기</title>
 <style>
   :root {
-    --ed-bg: #ffffff; --ed-panel: #f5f7fa; --ed-line: #e2e6eb;
-    --ed-text: #1d2530; --ed-sub: #687382; --ed-accent: #3a95d6;
+    --ed-bg: #ffffff; --ed-soft: #f7f9fc; --ed-panel: #eef2f7; --ed-line: #e4e9f1; --ed-line-s: #edf1f6;
+    --ed-text: #16202c; --ed-sub: #6c7889; --ed-accent: #3a8fd6; --ed-accent-2: #eaf4fc; --ed-danger: #d9534a;
+    --r-s: 8px; --r-m: 11px; --r-l: 15px;
+    --sh-1: 0 1px 2px rgba(20,45,80,.05);
+    --sh-2: 0 6px 18px -10px rgba(20,45,80,.35);
+    --fx: .18s cubic-bezier(.3,.8,.4,1);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    display: grid; grid-template-columns: 410px 1fr; height: 100vh;
+    display: grid; grid-template-columns: 424px 1fr; height: 100vh;
     font: 14px/1.55 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-    background: #edf2f7; color: var(--ed-text);
+    background: #e8edf4; color: var(--ed-text);
+    -webkit-font-smoothing: antialiased;
   }
+  ::selection { background: color-mix(in srgb, var(--ed-accent) 25%, transparent); }
 
   /* ---------- 좌측 편집기 ---------- */
-  #editor { background: var(--ed-bg); border-right: 1px solid var(--ed-line); display: flex; flex-direction: column; min-height: 0; }
-  .ed-top { padding: 12px 16px; border-bottom: 1px solid var(--ed-line); display: flex; align-items: center; gap: 8px; }
-  .ed-top h1 { font-size: 15px; margin: 0; flex: 1; }
-  .ed-tabs { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--ed-line); overflow-x: auto; scrollbar-width: thin; }
-  .ed-tab { flex: 1 0 46px; min-width: 46px; display: grid; justify-items: center; gap: 1px; padding: 6px 2px 5px; border: 0; border-radius: 9px; background: none; font-size: 11.5px; color: var(--ed-sub); }
-  .ed-tab .lb { max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tab-row { display: grid; grid-template-columns: 48px 1fr auto auto auto auto; gap: 4px; align-items: center; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 9px; padding: 6px; }
-  .tab-row .badge { white-space: nowrap; }
-  .tab-row button { padding: 4px 7px; }
-  .tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .tpl { display: grid; justify-items: center; gap: 1px; padding: 9px 4px 8px; text-align: center; line-height: 1.25; }
-  .tpl .ic { font-size: 20px; }
-  .tpl b { font-size: 12.5px; }
-  .tpl small { font-size: 10.5px; color: var(--ed-sub); }
-  .grp-box { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--ed-line); border-radius: 9px; background: var(--ed-panel); }
-  .grp-box textarea { min-height: 36px; font-size: 13px; }
-  .grp-row, .rule-row { display: grid; gap: 4px; align-items: center; }
-  .grp-row { grid-template-columns: 1fr auto auto auto; }
-  .rule-row { grid-template-columns: 112px 1fr auto; }
-  .grp-row button, .rule-row button { padding: 4px 7px; }
-  .ed-tab .ic { font-size: 17px; line-height: 1.15; }
-  .ed-tab:hover { background: var(--ed-panel); border: 0; }
-  .ed-tab.on { background: #e6f2fb; color: var(--ed-accent); font-weight: 700; }
-  .ed-scroll { overflow-y: auto; flex: 1; }
-  .panel { padding: 14px 16px 70px; display: grid; gap: 12px; }
-  .panel-head { display: flex; align-items: center; gap: 8px; margin: 0 0 2px; }
-  .panel-head h2 { font-size: 16px; margin: 0; }
+  #editor { background: var(--ed-bg); border-right: 1px solid var(--ed-line); display: flex; flex-direction: column; min-height: 0; position: relative; z-index: 2; }
+  .ed-top { padding: 9px 12px; border-bottom: 1px solid var(--ed-line-s); display: flex; align-items: center; gap: 6px; background: var(--ed-bg); }
+  .ed-top h1 { font-size: 14.5px; font-weight: 700; margin: 0; flex: 1; letter-spacing: -.01em; white-space: nowrap; }
+  .ed-top h1 i { font-style: normal; margin-right: 5px; }
+  .btn-grp { display: inline-flex; background: var(--ed-soft); border: 1px solid var(--ed-line); border-radius: var(--r-s); overflow: hidden; }
+  .btn-grp button { border: 0; border-radius: 0; background: none; padding: 5px 9px; }
+  .btn-grp button + button { border-left: 1px solid var(--ed-line); }
+  .btn-grp button:hover:not(:disabled) { background: #fff; }
+  .ico-btn { min-width: 30px; text-align: center; }
+
+  .ed-tabs { display: flex; gap: 3px; padding: 7px 8px; border-bottom: 1px solid var(--ed-line-s); overflow-x: auto; scrollbar-width: none; background: linear-gradient(var(--ed-bg), var(--ed-soft)); }
+  .ed-tabs::-webkit-scrollbar { display: none; }
+  .ed-tab { flex: 1 0 48px; min-width: 48px; display: grid; justify-items: center; gap: 2px; padding: 7px 3px 6px; border: 0; border-radius: var(--r-m); background: none; font-size: 11px; font-weight: 500; color: var(--ed-sub); transition: background var(--fx), color var(--fx); }
+  .ed-tab .lb { max-width: 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-tab .ic { font-size: 17px; line-height: 1.15; filter: saturate(.85); transition: filter var(--fx), transform var(--fx); }
+  .ed-tab:hover { background: rgba(58,143,214,.08); border: 0; color: var(--ed-text); }
+  .ed-tab.on { background: #fff; color: var(--ed-accent); font-weight: 700; box-shadow: var(--sh-1), inset 0 0 0 1px color-mix(in srgb, var(--ed-accent) 22%, transparent); }
+  .ed-tab.on .ic { filter: none; transform: translateY(-1px); }
+
+  .ed-scroll { overflow-y: auto; flex: 1; background: var(--ed-soft); scrollbar-width: thin; scrollbar-color: #cbd4e0 transparent; }
+  .ed-scroll::-webkit-scrollbar { width: 10px; }
+  .ed-scroll::-webkit-scrollbar-thumb { background: #cfd8e4; border: 3px solid var(--ed-soft); border-radius: 99px; }
+  .ed-scroll::-webkit-scrollbar-thumb:hover { background: #b6c2d2; }
+  .panel { padding: 0 14px 80px; display: grid; gap: 12px; align-content: start; }
+  .panel-head { display: flex; align-items: center; gap: 8px; margin: 0 -14px 2px; padding: 13px 14px 11px; position: sticky; top: 0; z-index: 3;
+    background: color-mix(in srgb, var(--ed-soft) 88%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--ed-line-s); }
+  .panel-head h2 { font-size: 15.5px; margin: 0; letter-spacing: -.01em; }
 
   details > summary { list-style: none; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; }
   details > summary::-webkit-details-marker { display: none; }
-  details > summary::after { content: "▸"; margin-left: auto; color: var(--ed-sub); transition: transform .15s; }
-  details[open] > summary::after { transform: rotate(90deg); }
-  .badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--ed-panel); border: 1px solid var(--ed-line); color: var(--ed-sub); font-weight: 500; }
-  label.f, .f { display: grid; gap: 4px; color: var(--ed-sub); font-size: 13px; }
-  .f b.val { color: var(--ed-text); font-weight: 600; }
+  details > summary::after { content: ""; margin-left: auto; width: 6px; height: 6px; flex-shrink: 0; border-right: 1.8px solid var(--ed-sub); border-bottom: 1.8px solid var(--ed-sub); transform: rotate(-45deg) translate(-2px, 0); transition: transform var(--fx); }
+  details[open] > summary::after { transform: rotate(45deg) translate(-1px, -1px); }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--ed-accent-2); border: 1px solid color-mix(in srgb, var(--ed-accent) 18%, transparent); color: color-mix(in srgb, var(--ed-accent) 78%, var(--ed-text)); font-weight: 600; white-space: nowrap; }
+  label.f, .f { display: grid; gap: 5px; color: var(--ed-sub); font-size: 12.5px; font-weight: 500; }
+  .f b.val { color: var(--ed-accent); font-weight: 700; }
   input[type=text], input[type=url], input[type=password], textarea, select {
     width: 100%; background: #fff; color: var(--ed-text); border: 1px solid var(--ed-line);
-    border-radius: 7px; padding: 8px 10px; font: inherit;
+    border-radius: var(--r-s); padding: 8px 10px; font: inherit; font-size: 13.5px;
+    transition: border-color var(--fx), box-shadow var(--fx), background var(--fx);
   }
-  textarea { resize: vertical; min-height: 44px; }
-  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--ed-accent); box-shadow: 0 0 0 3px rgba(58,149,214,.16); }
-  input[type=range] { width: 100%; accent-color: var(--ed-accent); }
+  input[type=text]:hover, input[type=url]:hover, textarea:hover, select:hover { border-color: #c8d2df; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 28px; cursor: pointer;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%236c7889' stroke-width='1.6' stroke-linecap='round'><path d='M3 4.5L6 7.5L9 4.5'/></svg>");
+    background-repeat: no-repeat; background-position: right 9px center; background-size: 12px; }
+  textarea { resize: vertical; min-height: 44px; line-height: 1.6; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--ed-accent); box-shadow: 0 0 0 3px rgba(58,143,214,.16); }
+  button:focus-visible, .ed-tab:focus-visible, summary:focus-visible { outline: 2px solid var(--ed-accent); outline-offset: 1px; }
+  input[type=range] { width: 100%; accent-color: var(--ed-accent); height: 18px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
   .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .row-icon { display: grid; grid-template-columns: 56px 1fr; gap: 8px; }
-  input[type=color] { width: 100%; height: 34px; border: 1px solid var(--ed-line); border-radius: 7px; background: #fff; padding: 3px; cursor: pointer; }
-  .check { display: flex; align-items: center; gap: 6px; color: var(--ed-text); font-size: 13px; cursor: pointer; }
+  .row-icon { display: grid; grid-template-columns: 58px 1fr; gap: 8px; }
+  input[type=color] { width: 100%; height: 34px; border: 1px solid var(--ed-line); border-radius: var(--r-s); background: #fff; padding: 3px; cursor: pointer; }
+  .check { display: flex; align-items: center; gap: 7px; color: var(--ed-text); font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 10px; border: 1px solid var(--ed-line); border-radius: var(--r-s); background: #fff; transition: border-color var(--fx), background var(--fx); }
+  .check:hover { border-color: #c8d2df; }
+  .check:has(input:checked) { border-color: color-mix(in srgb, var(--ed-accent) 45%, transparent); background: var(--ed-accent-2); color: color-mix(in srgb, var(--ed-accent) 80%, var(--ed-text)); }
+  .check input { accent-color: var(--ed-accent); width: 15px; height: 15px; margin: 0; flex-shrink: 0; }
   .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   button {
-    font: inherit; font-size: 13px; color: var(--ed-text); background: #fff; border: 1px solid var(--ed-line);
-    border-radius: 7px; padding: 6px 11px; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 500; color: var(--ed-text); background: #fff; border: 1px solid var(--ed-line);
+    border-radius: var(--r-s); padding: 7px 12px; cursor: pointer; transition: background var(--fx), border-color var(--fx), color var(--fx), box-shadow var(--fx), transform .1s;
   }
-  button:hover { border-color: #b9c1cc; background: var(--ed-panel); }
-  button:disabled { opacity: .4; cursor: default; }
-  button.primary { background: var(--ed-accent); color: #fff; border-color: transparent; font-weight: 600; }
-  button.primary:hover { background: #2c82c2; }
+  button:hover:not(:disabled) { border-color: #c2ccda; background: var(--ed-soft); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .38; cursor: default; }
+  button.primary { background: var(--ed-accent); color: #fff; border-color: transparent; font-weight: 600; box-shadow: 0 2px 8px -2px rgba(58,143,214,.55); }
+  button.primary:hover:not(:disabled) { background: #2f81c8; border-color: transparent; }
   button.ghost { background: none; border-color: transparent; }
-  button.ghost:hover { background: rgba(0,0,0,.05); }
-  button.danger:hover { color: #d93a3a; }
-  button.add { border-style: dashed; color: var(--ed-sub); }
-  button.on { border-color: var(--ed-accent); color: var(--ed-accent); background: #ebf5fc; }
+  button.ghost:hover:not(:disabled) { background: rgba(20,45,80,.06); border-color: transparent; }
+  button.danger:hover:not(:disabled) { color: var(--ed-danger); background: #fdf1f0; }
+  button.add { border-style: dashed; color: var(--ed-sub); background: none; padding: 9px 12px; font-weight: 600; }
+  button.add:hover:not(:disabled) { color: var(--ed-accent); border-color: var(--ed-accent); background: var(--ed-accent-2); }
+  button.on { border-color: var(--ed-accent); color: var(--ed-accent); background: var(--ed-accent-2); font-weight: 600; }
 
   .imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
-  .img-field { display: flex; gap: 8px; align-items: center; }
+  .img-field { display: flex; gap: 10px; align-items: center; padding: 7px; border: 1px solid var(--ed-line); border-radius: var(--r-m); background: #fff; }
   .img-thumb {
-    width: 56px; height: 56px; border-radius: 7px; background: var(--ed-panel) center/contain no-repeat;
-    border: 1px dashed #c3ccd6; flex-shrink: 0;
+    width: 52px; height: 52px; border-radius: var(--r-s); background: var(--ed-panel) center/contain no-repeat;
+    border: 1px dashed #c6cfdb; flex-shrink: 0;
   }
-  .img-field .btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .img-field .btns { display: flex; gap: 5px; flex-wrap: wrap; }
   .img-field input[type=file] { display: none; }
-  .acc { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; }
+  .acc { display: grid; grid-template-columns: 74px 1fr; gap: 8px; align-items: center; }
 
-  .card { background: #fff; border: 1px solid var(--ed-line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
-  .card-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--ed-text); }
-  details.item { background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 10px; }
-  details.item > summary { padding: 9px 10px 9px 12px; font-weight: 600; font-size: 13px; }
-  details.item > summary .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+  .card { background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-l); padding: 12px; display: grid; gap: 10px; box-shadow: var(--sh-1); }
+  .card-title { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--ed-text); display: flex; align-items: center; gap: 6px; }
+  details.item { background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-l); box-shadow: var(--sh-1); transition: box-shadow var(--fx), border-color var(--fx); }
+  details.item:hover { border-color: #d2dbe6; }
+  details.item[open] { box-shadow: var(--sh-2); border-color: color-mix(in srgb, var(--ed-accent) 24%, var(--ed-line)); }
+  details.item > summary { padding: 10px 10px 10px 13px; font-weight: 600; font-size: 13px; border-radius: var(--r-l); }
+  details.item[open] > summary { border-radius: var(--r-l) var(--r-l) 0 0; border-bottom: 1px solid var(--ed-line-s); }
+  details.item > summary .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12), 0 0 0 3px color-mix(in srgb, currentColor 0%, transparent); }
   details.item > summary .ttl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  details.item > summary button { padding: 2px 7px; }
-  details.item > .item-body { padding: 2px 12px 14px; display: grid; gap: 10px; }
-  .grp { margin: 6px 0 -2px; font-size: 12px; font-weight: 700; color: var(--ed-text); }
-  .info-row { background: #fff; border: 1px solid var(--ed-line); border-radius: 9px; padding: 8px; display: grid; gap: 6px; }
+  details.item > summary button { padding: 3px 7px; font-size: 12px; opacity: .55; }
+  details.item > summary:hover button, details.item[open] > summary button { opacity: 1; }
+  details.item > .item-body { padding: 12px 12px 14px; display: grid; gap: 10px; }
+  .grp { margin: 8px 0 -2px; font-size: 11px; font-weight: 700; color: var(--ed-sub); letter-spacing: .08em; text-transform: uppercase; display: flex; align-items: center; gap: 9px; }
+  .grp::after { content: ""; flex: 1; height: 1px; background: var(--ed-line); }
+  .info-row { background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); padding: 8px; display: grid; gap: 6px; }
   .info-row .top { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
-  .hint { color: var(--ed-sub); font-size: 12px; margin: 0; }
-  .dp-status { border-radius: 9px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin: 0; word-break: break-all; }
-  .dp-status.busy { background: #f3f6fa; color: #4a5566; }
-  .dp-status.ok { background: #ebf8f0; color: #226b41; border: 1px solid #c9ecd6; }
-  .dp-status.err { background: #fdf0f0; color: #a33232; border: 1px solid #f3d0d0; }
+  .info-row .check { padding: 5px 8px; font-size: 12px; }
+  .hint { color: var(--ed-sub); font-size: 12px; line-height: 1.6; margin: 0; }
+  .dp-status { border-radius: var(--r-m); padding: 10px 12px; font-size: 13px; line-height: 1.5; margin: 0; word-break: break-all; }
+  .dp-status.busy { background: #f0f4f9; color: #4a5566; }
+  .dp-status.ok { background: #ecf8f1; color: #206b40; border: 1px solid #c9ecd6; }
+  .dp-status.err { background: #fdf1f0; color: #a33232; border: 1px solid #f3d0d0; }
   .dp-status a { color: inherit; font-weight: 700; }
-  .guide { background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 10px; }
+  .guide { background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); }
   .guide > summary { padding: 10px 12px; font-weight: 600; font-size: 13px; }
   .guide ol { margin: 0; padding: 0 14px 12px 32px; font-size: 13px; line-height: 1.65; color: var(--ed-text); }
   .guide li + li { margin-top: 4px; }
   .guide b { font-weight: 700; }
-  .note { background: #f0f7fd; border: 1px solid #d3e7f7; color: #3a5a78; border-radius: 8px; padding: 9px 11px; font-size: 12.5px; margin: 0; }
+  .note { background: var(--ed-accent-2); border: 1px solid #d3e7f7; color: #3a5a78; border-radius: var(--r-m); padding: 10px 12px; font-size: 12.5px; line-height: 1.6; margin: 0; }
+
+  /* 탭 관리 · 템플릿 */
+  .tab-row { display: grid; grid-template-columns: 46px 1fr auto auto auto auto; gap: 5px; align-items: center; background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); padding: 6px; box-shadow: var(--sh-1); }
+  .tab-row .badge { white-space: nowrap; }
+  .tab-row input[type=text]:first-child { text-align: center; padding: 8px 2px; }
+  .tab-row button { padding: 5px 7px; }
+  .tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tpl { display: grid; justify-items: center; gap: 2px; padding: 10px 4px 9px; text-align: center; line-height: 1.25; border-radius: var(--r-m); }
+  .tpl:hover:not(:disabled) { border-color: var(--ed-accent); background: var(--ed-accent-2); }
+  .tpl .ic { font-size: 20px; }
+  .tpl b { font-size: 12.5px; }
+  .tpl small { font-size: 10.5px; color: var(--ed-sub); }
+
+  /* 세부 탭 (서브 페어) */
+  .subtabs { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px; background: #fff; border: 1px solid var(--ed-line); border-radius: var(--r-m); box-shadow: var(--sh-1); }
+  .subtab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; font-size: 12.5px; font-weight: 600; color: var(--ed-sub); background: var(--ed-soft); border-color: transparent; }
+  .subtab:hover:not(:disabled) { background: var(--ed-panel); border-color: transparent; color: var(--ed-text); }
+  .subtab .n { font-size: 10.5px; font-weight: 700; padding: 0 6px; border-radius: 99px; background: rgba(20,45,80,.08); }
+  .subtab.on { background: var(--ed-accent); color: #fff; border-color: transparent; box-shadow: 0 2px 8px -3px rgba(58,143,214,.8); }
+  .subtab.on:hover { background: #2f81c8; color: #fff; }
+  .subtab.on .n { background: rgba(255,255,255,.26); }
+  .subtab.new { background: none; border: 1px dashed var(--ed-line); }
+  .subtab.new:hover { border-color: var(--ed-accent); color: var(--ed-accent); background: var(--ed-accent-2); }
+  .sec-head { display: flex; align-items: center; gap: 8px; margin: 10px 0 -2px; font-size: 12px; font-weight: 700; color: var(--ed-accent); }
+  .sec-head::after { content: ""; flex: 1; height: 1px; background: color-mix(in srgb, var(--ed-accent) 22%, transparent); }
+  .sec-head .n { color: var(--ed-sub); font-weight: 600; }
+
+  .grp-box { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--ed-line); border-radius: var(--r-m); background: var(--ed-soft); }
+  .grp-box textarea { min-height: 36px; font-size: 13px; }
+  .grp-row, .rule-row { display: grid; gap: 5px; align-items: center; }
+  .grp-row { grid-template-columns: 1fr auto auto auto; }
+  .rule-row { grid-template-columns: 116px 1fr auto; }
+  .grp-row button, .rule-row button { padding: 5px 8px; }
 
   .layouts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .layouts.two { grid-template-columns: 1fr 1fr; }
   .layouts.three { grid-template-columns: repeat(3, 1fr); }
-  .lay { display: grid; justify-items: center; gap: 3px; padding: 7px 2px 5px; font-size: 11px; color: var(--ed-sub); line-height: 1.2; }
-  .lay svg { width: 44px; height: 30px; color: #9aa4b0; }
+  .lay { display: grid; justify-items: center; gap: 4px; padding: 8px 2px 6px; font-size: 11px; color: var(--ed-sub); line-height: 1.2; border-radius: var(--r-m); }
+  .lay svg { width: 44px; height: 30px; color: #9aa6b4; transition: color var(--fx); }
+  .lay:hover:not(:disabled) { border-color: #c2ccda; }
+  .lay:hover svg { color: #7d8b9c; }
+  .lay.on { border-color: var(--ed-accent); color: var(--ed-accent); background: var(--ed-accent-2); font-weight: 700; }
   .lay.on svg { color: var(--ed-accent); }
 
   /* ---------- 우측 미리보기 ---------- */
   #preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .pv-top { padding: 10px 16px; border-bottom: 1px solid var(--ed-line); display: flex; gap: 8px; align-items: center; background: #fff; }
+  .pv-top { padding: 9px 14px; border-bottom: 1px solid var(--ed-line); display: flex; gap: 7px; align-items: center; background: var(--ed-bg); flex-wrap: wrap; }
   .pv-top .sp { flex: 1; }
-  .seg { display: inline-flex; border: 1px solid var(--ed-line); border-radius: 7px; overflow: hidden; }
-  .seg button { border: 0; border-radius: 0; background: none; color: var(--ed-sub); }
-  .seg button.on { background: var(--ed-panel); color: var(--ed-text); font-weight: 600; }
-  .pv-stage { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; }
-  .pv-frame { border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 16px 40px rgba(20,40,60,.16); transition: width .2s; height: 100%; min-height: 600px; max-width: 100%; }
+  .seg { display: inline-flex; border: 1px solid var(--ed-line); border-radius: var(--r-s); overflow: hidden; background: var(--ed-soft); padding: 2px; gap: 2px; }
+  .seg button { border: 0; border-radius: 6px; background: none; color: var(--ed-sub); padding: 5px 10px; }
+  .seg button:hover:not(.on) { background: rgba(20,45,80,.05); }
+  .seg button.on { background: #fff; color: var(--ed-text); font-weight: 600; box-shadow: var(--sh-1); }
+  .pv-stage { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; background:
+    radial-gradient(1200px 600px at 50% -10%, #f3f7fc, transparent), #e8edf4; }
+  .pv-frame { border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.07), 0 18px 46px rgba(20,40,60,.18); transition: width .2s; height: 100%; min-height: 600px; max-width: 100%; background: #fff; }
   .pv-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 
   /* 화면 배치: 둘 다 / 편집창만 / 미리보기만 */
-  .layout-seg button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; }
+  .layout-seg button { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; }
   .layout-seg svg { width: 16px; height: 16px; }
   .ed-top .layout-seg { display: none; }
   body.only-editor, body.only-preview { grid-template-columns: 1fr; }
   body.only-editor #preview, body.only-preview #editor { display: none; }
   body.only-editor #editor { border-right: 0; }
   body.only-editor .ed-top .layout-seg { display: inline-flex; }
-  body.only-editor .ed-tabs, body.only-editor .panel { width: 100%; max-width: 760px; margin: 0 auto; }
-  body.only-editor .ed-tabs { border-bottom: 0; }
-  body.only-editor .ed-scroll { border-top: 1px solid var(--ed-line); }
+  body.only-editor .ed-tabs, body.only-editor .panel { width: 100%; max-width: 780px; margin: 0 auto; }
+  body.only-editor .ed-tabs { border-bottom: 0; background: none; }
+  body.only-editor .ed-scroll { border-top: 1px solid var(--ed-line-s); }
+  body.only-editor .panel-head { margin-left: 0; margin-right: 0; }
 
   @media (max-width: 860px) {
     body { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
     body.only-editor, body.only-preview { grid-template-rows: 1fr; }
     #editor { border-right: 0; border-bottom: 1px solid var(--ed-line); }
     .layout-seg .lbl { display: none; }
+    .ed-top h1 { font-size: 13px; }
+    .pv-stage { padding: 14px; }
   }
 </style>
 </head>
@@ -156,16 +220,20 @@
 
 <aside id="editor">
   <div class="ed-top">
-    <h1>자기소개 생성기</h1>
+    <h1><i>✨</i>자기소개 생성기</h1>
     <div class="seg layout-seg">
       <button type="button" data-layout-mode="both" title="편집창 + 미리보기"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg><span class="lbl">둘 다</span></button>
       <button type="button" data-layout-mode="editor" title="편집창만 보기"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M4.5 6h7M4.5 8.5h7M4.5 11h4"/></svg><span class="lbl">편집만</span></button>
       <button type="button" data-layout-mode="preview" title="미리보기만 보기"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="8" cy="8" r="2.2"/></svg><span class="lbl">미리보기만</span></button>
     </div>
-    <button id="btnUndo" title="되돌리기 (⌘/Ctrl+Z)" disabled>↶ 되돌리기</button>
-    <button id="btnRedo" title="다시 실행 (⇧+⌘/Ctrl+Z)" disabled>↷</button>
-    <button id="btnLoad" title="저장한 프로젝트(.json) 불러오기">불러오기</button>
-    <button id="btnSave" title="프로젝트를 .json으로 저장">저장</button>
+    <div class="btn-grp">
+      <button id="btnUndo" class="ico-btn" title="되돌리기 (⌘/Ctrl+Z)" disabled>↶</button>
+      <button id="btnRedo" class="ico-btn" title="다시 실행 (⇧+⌘/Ctrl+Z)" disabled>↷</button>
+    </div>
+    <div class="btn-grp">
+      <button id="btnLoad" title="저장한 프로젝트(.json) 불러오기">불러오기</button>
+      <button id="btnSave" title="프로젝트를 .json으로 저장">저장</button>
+    </div>
     <input type="file" id="loadFile" accept="application/json" hidden>
   </div>
   <nav class="ed-tabs" id="edTabs"></nav>
@@ -203,7 +271,7 @@ const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', c
 const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', a: charObj(), b: charObj() }, o);
 const mainItem = (o = {}) => Object.assign({
   accent: '', style: 'poster', showTitle: true, image: '', title: '', sub: '', tags: '', desc: '',
-  backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
+  backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, picFade: 0, picFadeDir: 'bottom', cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
   frontMode: 'single', frontA: '', frontB: '', a: charObj(), b: charObj(),
 }, o);
 const friendItem = (o = {}) => Object.assign({ accent: '', emoji: '', name: '', desc: '', link: '', linkText: '보러 가기' }, o);
@@ -306,6 +374,12 @@ const FRONT_MODES = {
 const PAIR_KINDS = {
   pair: { label: '페어 (알약)', icon: '<rect x="2" y="7" width="40" height="16" rx="8" fill="currentColor" opacity=".5"/>' },
   solo: { label: '단독 (동그라미)', icon: '<circle cx="22" cy="15" r="11" fill="currentColor" opacity=".5"/>' },
+};
+const PIC_FADES = {
+  bottom: { label: '아래로', icon: '<defs><linearGradient id="fdb" x1="0" y1="0" x2="0" y2="1"><stop offset=".35" stop-color="currentColor" stop-opacity=".65"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><rect x="12" y="2" width="20" height="26" rx="3" fill="url(#fdb)"/>' },
+  top:    { label: '위로',   icon: '<defs><linearGradient id="fdt" x1="0" y1="1" x2="0" y2="0"><stop offset=".35" stop-color="currentColor" stop-opacity=".65"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><rect x="12" y="2" width="20" height="26" rx="3" fill="url(#fdt)"/>' },
+  sides:  { label: '양옆으로', icon: '<defs><linearGradient id="fds" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="currentColor" stop-opacity="0"/><stop offset=".5" stop-color="currentColor" stop-opacity=".65"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><rect x="6" y="2" width="32" height="26" rx="3" fill="url(#fds)"/>' },
+  edge:   { label: '가장자리 전체', icon: '<defs><radialGradient id="fde"><stop offset=".35" stop-color="currentColor" stop-opacity=".65"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></radialGradient></defs><rect x="6" y="2" width="32" height="26" rx="3" fill="url(#fde)"/>' },
 };
 const TEXT_STYLES = {
   plain: { label: '기본', icon: '<rect x="10" y="10" width="24" height="3" rx="1.5" fill="currentColor"/><rect x="13" y="17" width="18" height="2.5" rx="1" fill="currentColor" opacity=".5"/>' },
@@ -423,7 +497,7 @@ let state = (() => {
   return clone(DEFAULT);
 })();
 // 편집기 · 미리보기의 현재 상태 — 재렌더링 시 유지
-let view = { edTab: 'cover', opened: false, tab: 0, flips: [], peek: false };
+let view = { edTab: 'cover', opened: false, tab: 0, flips: [], peek: false, sub: {} };
 
 /* =========================================================
    유틸
@@ -900,7 +974,7 @@ function profileHTML(e) {
 function backBg(m) {
   if (!m.backImg) return '';
   const f = Math.max(0, Math.min(100, Number(m.backFade) || 0));
-  const img = `url(${m.backImg}) center/cover no-repeat`;
+  const img = `url('${m.backImg}') center/cover no-repeat`;
   if (!f) return `background:${img}`;
   const mix = k => `color-mix(in srgb,var(--card) ${Math.min(100, Math.round(f * k))}%,transparent)`;
   return `background:linear-gradient(180deg,${mix(.5)} 0%,${mix(1)} 50%,${mix(1.6)} 100%),${img}`;
@@ -908,6 +982,8 @@ function backBg(m) {
 
 function mainCard(m, i, labels) {
   const pic = c => c.image ? `<img src="${c.image}" alt="">` : '';
+  // 사진 가장자리를 그라데이션으로 투명하게 — 뒷배경 이미지와 자연스럽게 섞이도록
+  const fade = Math.max(0, Math.min(100, Number(m.picFade) || 0));
   const hero = m.backLayout === 'hero' && (m.a.image || m.b.image)
     ? `<div class="hero">${[m.a, m.b].map(c => `<span class="${c.image && c.prompt ? 'copyable' : ''}" ${c.image ? copyAttr(c.prompt) : ''}>${c.image ? `<img src="${c.image}" alt="">` : ''}</span>`).join('')}</div>` : '';
   const withPics = m.backLayout !== 'hero';
@@ -920,7 +996,7 @@ function mainCard(m, i, labels) {
             : m.image ? `<img src="${m.image}" alt="">` : `<div class="ph">MAIN IMAGE</div>`}
           ${m.showTitle && (m.title || m.sub) ? `<div class="front-tx">${m.sub ? `<p>${esc(m.sub)}</p>` : ''}${m.title ? `<h2>${esc(m.title)}</h2>` : ''}</div>` : ''}
         </div>
-        <div class="face back lay-${esc(m.backLayout)} shape-${esc(m.picShape)} ${m.cardBg === false ? 'no-cb' : ''} ${m.backImg ? 'has-img' : ''} tx-${esc(m.textStyle || 'plain')}" style="--pic:${Number(m.picSize) || 100};--tc:${isHex(m.textColor) ? m.textColor : '#ffffff'};--pc:${isHex(m.pillColor) ? m.pillColor : '#ffffff'};--rad:${Number(m.picRadius) || 0};${backBg(m)}">
+        <div class="face back lay-${esc(m.backLayout)} shape-${esc(m.picShape)} ${m.cardBg === false ? 'no-cb' : ''} ${m.backImg ? 'has-img' : ''} ${fade ? `pf pf-${esc(PIC_FADES[m.picFadeDir] ? m.picFadeDir : 'bottom')}` : ''} tx-${esc(m.textStyle || 'plain')}" style="--pic:${Number(m.picSize) || 100};--tc:${isHex(m.textColor) ? m.textColor : '#ffffff'};--pc:${isHex(m.pillColor) ? m.pillColor : '#ffffff'};--rad:${Number(m.picRadius) || 0};--pf:${fade};${backBg(m)}">
           ${hero}
           <div class="bk-head">
             ${m.sub ? `<p class="sub">${esc(m.sub)}</p>` : ''}
@@ -986,7 +1062,7 @@ function othersHTML(o, labels, uid = 'o') {
   const allChip = o.showAll !== false, startId = chips && !allChip ? titled[0].id : null;
 
   return `${o.intro ? `<p class="tab-intro">${nl(o.intro)}</p>` : ''}
-    ${chips ? `<div class="gchips">${allChip ? '<button type="button" class="gchip on" data-g="*">전체</button>' : ''}${titled.map(b => `<button type="button" class="gchip ${b.id === startId ? 'on' : ''}" data-g="${esc(b.id)}">${esc(b.title || '목록')}</button>`).join('')}</div>` : ''}
+    ${chips ? `<div class="gchips">${allChip ? '<button type="button" class="gchip on" data-g="*">전체</button>' : ''}${titled.map(b => `<button type="button" class="gchip ${b.id === startId ? 'on' : ''}" data-g="${esc(b.id)}">${esc(b.title || '세부 탭')}</button>`).join('')}</div>` : ''}
     <div class="sgrps ${startId ? 'filtered' : ''}">${shown.map(b => `
       <div class="sgrp" data-g="${esc(b.id)}" ${startId && b.id && b.id !== startId ? 'hidden' : ''}>
         ${b.id && b.title ? `<h3 class="sgrp-t">${esc(b.title)}</h3>` : ''}
@@ -1281,6 +1357,15 @@ body.no-anim section{animation:none}
 .shape-heart .cb-pic,.shape-heart .hero span{border-radius:0;border:0;box-shadow:none;background:none;-webkit-mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat;mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat}
 .shape-natural .cb-pic,.shape-natural .hero span{aspect-ratio:auto}
 .shape-natural .cb-pic img,.shape-natural .hero img{height:auto}
+/* 사진 가장자리를 그라데이션으로 투명하게 — 뒷배경 이미지와 자연스럽게 섞기 */
+.pf{--fs:calc(100% - var(--pf) * 1%);--fh:calc(var(--pf) * .5%)}
+.pf .cb-pic,.pf .hero span{background:none;border:0;box-shadow:none}
+.pf .cb-pic img,.pf .hero img{-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.pf-bottom .cb-pic img,.pf-bottom .hero img{-webkit-mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%)}
+.pf-top .cb-pic img,.pf-top .hero img{-webkit-mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%)}
+.pf-sides .cb-pic img,.pf-sides .hero img{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%)}
+.pf-edge .cb-pic img,.pf-edge .hero img{-webkit-mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%);mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%)}
+.pf .hero span+span{margin-left:calc(var(--pic) * -.18px)}
 .flip-hint{text-align:center;font:13px var(--sys);opacity:.5;margin:14px 0 0;transition:opacity .3s}
 .flip.on+.flip-hint{opacity:0}
 
@@ -1683,12 +1768,15 @@ function refreshTitles() {
 }
 
 const forceOpen = new Set();
-function itemCard(listPath, i, len, title, bodyHTML, isOpen, accent) {
+// nav 를 주면 목록 안에서 실제로 위/아래에 보이는 항목과 자리를 바꿈 (세부 탭으로 걸러본 목록용)
+function itemCard(listPath, i, len, title, bodyHTML, isOpen, accent, nav) {
   const key = `${listPath}.${i}`;
+  const up = nav ? nav.prev : (i === 0 ? -1 : i - 1);
+  const dn = nav ? nav.next : (i === len - 1 ? -1 : i + 1);
   return `<details class="item" data-sec="${key}" ${isOpen(key) || forceOpen.has(key) ? 'open' : ''}>
     <summary><span class="dot" style="background:${isHex(accent) ? accent : state.theme.accent}"></span><span class="ttl">${title}</span>
-      <button type="button" class="ghost" data-move="${listPath}" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
-      <button type="button" class="ghost" data-move="${listPath}" data-i="${i}" data-dir="1" ${i === len - 1 ? 'disabled' : ''}>↓</button>
+      <button type="button" class="ghost" data-move="${listPath}" data-i="${i}" data-j="${up}" ${up < 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" class="ghost" data-move="${listPath}" data-i="${i}" data-j="${dn}" ${dn < 0 ? 'disabled' : ''}>↓</button>
       <button type="button" class="ghost danger" data-del="${listPath}" data-i="${i}">삭제</button>
     </summary>
     <div class="item-body">${bodyHTML}</div>
@@ -1811,6 +1899,9 @@ function mainsPanel(B, isOpen) {
         ${m.textStyle === 'pill' ? color(`${p}.pillColor`, '알약 배경색') : m.textStyle === 'color' ? color(`${p}.textColor`, '글자 색 (배경이 어두우면 흰색 추천)') : ''}
         <div class="row">${range(`${p}.picSize`, '사진 크기', 30, 100, '%')}${select(`${p}.picShape`, '사진 모양', { square: '정사각형', tall: '세로 직사각형', wide: '가로 직사각형', natural: '원본 비율', round: '원형', arch: '아치형', heart: '하트' })}</div>
         ${['square', 'tall', 'wide', 'natural'].includes(m.picShape) ? range(`${p}.picRadius`, '모서리 둥글기', 0, 40, 'px') : ''}
+        <div class="f">사진 가장자리 투명하게 · 방향${picker(`${p}.picFadeDir`, PIC_FADES)}</div>
+        ${range(`${p}.picFade`, '투명해지는 정도 (0% = 사용 안 함)', 0, 100, '%')}
+        <p class="hint">사진 가장자리를 그라데이션으로 지워서 뒷면 배경 이미지와 섞어요. 위의 '캐릭터 · 유저 칸에 배경 블록 깔기'를 끄면 더 자연스러워요.</p>
         ${text(`${p}.tags`, '태그', '쉼표(,)로 구분')}
         ${charEditor(`${p}.a`, `🤖 ${esc(L.a)}`)}
         ${charEditor(`${p}.b`, `🙋 ${esc(L.b)}`, { meta: false })}
@@ -1820,50 +1911,113 @@ function mainsPanel(B, isOpen) {
     <p class="hint">뒷면은 앞면과 같은 크기예요. 내용이 길면 카드 안에서 스크롤돼요.</p>`;
 }
 
+// 서브 페어 탭 안의 '세부 탭' — 현재 고른 세부 탭 ('*' 전체 / '' 공통 / 세부 탭 id)
+function curSub(B, O) {
+  const groups = O.groups || [];
+  const sub = view.sub || (view.sub = {});
+  let cur = sub[B] ?? '*';
+  if (!groups.length) cur = '*';
+  else if (cur !== '*' && cur !== '' && !groups.some(g => g.id === cur)) cur = '*';
+  sub[B] = cur;
+  return cur;
+}
+
 function othersPanel(B, isOpen) {
   const L = state.labels, O = getPath(state, B), groups = O.groups || (O.groups = []);
-  return `
-    <div class="row">${colsSelect(B + '.cols', '개')}${select(B + '.namePos', '이름 위치', { in: '알약 안 아래쪽', below: '알약 바로 밑' })}</div>
-    <div class="row">${select(B + '.nameFont', '이름 글꼴', { body: '본문 글꼴', serif: '명조', script: '필기체' })}${check(B + '.showName', '알약에 이름 표시')}</div>
-    ${text(B + '.intro', '탭 상단 문구 (선택)')}
-    <div class="card">
-      <p class="card-title">목록 나누기</p>
-      ${groups.length ? groups.map((g, k, arr) => `
-        <div class="grp-box">
-          <div class="grp-row">
-            <input type="text" data-path="${B}.groups.${k}.title" value="${esc(g.title)}" placeholder="목록 이름">
-            <button type="button" class="ghost" data-move="${B}.groups" data-i="${k}" data-dir="-1" ${k === 0 ? 'disabled' : ''}>↑</button>
-            <button type="button" class="ghost" data-move="${B}.groups" data-i="${k}" data-dir="1" ${k === arr.length - 1 ? 'disabled' : ''}>↓</button>
-            <button type="button" class="ghost danger" data-delgroup="${k}" data-base="${B}">✕</button>
-          </div>
-          <textarea rows="1" data-path="${B}.groups.${k}.intro" placeholder="이 목록 상단 문구 (선택)">${esc(g.intro || '')}</textarea>
-        </div>`).join('') : '<p class="hint">목록을 나누지 않으면 전부 한 목록으로 보여요.</p>'}
-      <div class="row">
-        <button type="button" class="add" data-addgroup data-base="${B}">+ 목록 추가</button>
-        <button type="button" class="add" data-autogroup data-base="${B}">✨ 페어·애호캐·유저캐로 자동 나누기</button>
+  const gid = g => groups.some(x => x.id === g) ? g : '';
+  const cur = curSub(B, O);
+  const countOf = k => O.items.filter(p => gid(p.group) === k).length;
+  const free = countOf('');
+
+  // ── 세부 탭 고르는 줄
+  const chip = (k, label, n) => `<button type="button" class="subtab ${cur === k ? 'on' : ''}" data-subtab="${esc(k)}" data-base="${B}">${esc(label)}${n === null ? '' : `<span class="n">${n}</span>`}</button>`;
+  const chips = `<div class="subtabs">
+    ${groups.length ? chip('*', '전체', O.items.length) : ''}
+    ${groups.length ? chip('', '공통', free) : ''}
+    ${groups.map(g => chip(g.id, g.title || '이름 없음', countOf(g.id))).join('')}
+    <button type="button" class="subtab new" data-addgroup data-base="${B}">+ 세부 탭</button>
+  </div>`;
+
+  // ── 고른 세부 탭 설정 / 전체일 때의 표시 방식
+  const gi = groups.findIndex(g => g.id === cur);
+  let head = '';
+  if (gi >= 0) {
+    const g = groups[gi];
+    head = `<div class="card">
+      <p class="card-title">🗂 세부 탭 설정</p>
+      <div class="grp-row">
+        <input type="text" data-path="${B}.groups.${gi}.title" value="${esc(g.title || '')}" placeholder="세부 탭 이름">
+        <button type="button" class="ghost" data-move="${B}.groups" data-i="${gi}" data-dir="-1" ${gi === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" class="ghost" data-move="${B}.groups" data-i="${gi}" data-dir="1" ${gi === groups.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" class="ghost danger" data-delgroup="${gi}" data-base="${B}">삭제</button>
       </div>
-      ${groups.length ? select(B + '.groupStyle', '보여주는 방식', { title: '제목으로 구분해서 이어 보기', chips: '위쪽 작은 탭으로 골라 보기' }) : ''}
-      ${groups.length && O.groupStyle === 'chips' ? check(B + '.showAll', "맨 앞에 '전체' 탭 넣기") + (O.showAll === false ? '<p class="hint">전체 탭이 없으면 첫 번째 목록이 먼저 보여요. 목록을 고르지 않은 항목은 어느 탭에서나 보여요.</p>' : '') : ''}
-      ${groups.length ? '<p class="hint">각 항목 안의 \'목록\'에서 어느 목록에 넣을지 골라요.</p>' : ''}
-    </div>
-    ${O.items.map((p, i, arr) => {
-      const P = `${B}.items.${i}`, solo = p.kind === 'solo';
-      return itemCard(B + '.items', i, arr.length, esc(itemTitle(B + '.items', p)), `
-      ${groups.length ? select(`${P}.group`, '목록', Object.fromEntries([['', '(목록 없음 · 맨 위)'], ...groups.map(g => [g.id, g.title || '이름 없는 목록'])])) : ''}
+      <textarea rows="2" data-path="${B}.groups.${gi}.intro" placeholder="이 세부 탭 상단 문구 (선택)">${esc(g.intro || '')}</textarea>
+      <p class="hint">아래에서 추가하는 항목은 이 세부 탭에 들어가요. 세부 탭을 지워도 안에 있던 항목은 '공통'으로 남아요.</p>
+    </div>`;
+  } else if (cur === '') {
+    head = `<p class="hint">'공통' 항목은 어느 세부 탭을 골라도 항상 맨 위에 보여요.</p>`;
+  } else if (groups.length) {
+    head = `<div class="card">
+      <p class="card-title">🐳 완성된 페이지에서 보여주는 방식</p>
+      ${select(B + '.groupStyle', '세부 탭 표시', { title: '제목으로 구분해서 이어 보기', chips: '위쪽 작은 탭으로 골라 보기' })}
+      ${O.groupStyle === 'chips' ? check(B + '.showAll', "맨 앞에 '전체' 탭 넣기") : ''}
+      ${O.groupStyle === 'chips' && O.showAll === false ? '<p class="hint">전체 탭이 없으면 첫 번째 세부 탭이 먼저 보여요.</p>' : ''}
+      <button type="button" class="add" data-autogroup data-base="${B}">✨ 페어 · 애호캐 · 유저캐로 자동 나누기</button>
+    </div>`;
+  } else {
+    head = `<p class="hint">'+ 세부 탭'으로 항목을 나눠 담을 수 있어요. 완성된 페이지에서도 제목이나 작은 탭으로 나눠서 보여줘요.</p>`;
+  }
+
+  // ── 항목 하나 편집칸
+  const itemBody = (p, i) => {
+    const P = `${B}.items.${i}`, solo = p.kind === 'solo';
+    return `
+      ${groups.length ? select(`${P}.group`, '세부 탭', Object.fromEntries([['', '공통 (항상 맨 위)'], ...groups.map(g => [g.id, g.title || '이름 없는 세부 탭'])])) : ''}
       <div class="f">형태${picker(`${P}.kind`, PAIR_KINDS, 'two')}</div>
       ${solo ? select(`${P}.role`, '누구인가요', { a: `🤖 캐릭터 (${L.a})`, b: `🙋 유저 (${L.b})` }) : ''}
       ${accentField(`${P}.accent`)}
       ${solo
         ? charEditor(`${P}.a`, p.role === 'b' ? `🙋 ${esc(L.b)}` : `🤖 ${esc(L.a)}`, { meta: p.role !== 'b', imgLabel: '사진' })
         : `${charEditor(`${P}.a`, `🤖 왼쪽 · ${esc(L.a)}`, { imgLabel: '사진' })}
-           ${charEditor(`${P}.b`, `🙋 오른쪽 · ${esc(L.b)}`, { meta: false, imgLabel: '사진' })}`}`, isOpen, p.accent);
-    }).join('')}
+           ${charEditor(`${P}.b`, `🙋 오른쪽 · ${esc(L.b)}`, { meta: false, imgLabel: '사진' })}`}`;
+  };
+  // 걸러낸 목록 안에서 위/아래 항목끼리만 자리를 바꾸도록 실제 번호를 넘겨줌
+  const listOf = entries => entries.map(([p, i], n) => itemCard(B + '.items', i, O.items.length, esc(itemTitle(B + '.items', p)),
+    itemBody(p, i), isOpen, p.accent, { prev: n > 0 ? entries[n - 1][1] : -1, next: n < entries.length - 1 ? entries[n + 1][1] : -1 })).join('');
+  const entriesOf = k => O.items.map((p, i) => [p, i]).filter(([p]) => gid(p.group) === k);
+
+  let list;
+  if (cur === '*' && groups.length) {
+    // 전체 보기 — 세부 탭별로 모아서
+    const sec = (title, k) => {
+      const e = entriesOf(k);
+      return e.length ? `<p class="sec-head">${esc(title)}<span class="n">${e.length}</span></p>${listOf(e)}` : '';
+    };
+    list = sec('공통 · 항상 맨 위', '') + groups.map(g => sec(g.title || '이름 없는 세부 탭', g.id)).join('');
+  } else {
+    list = listOf(cur === '*' ? O.items.map((p, i) => [p, i]) : entriesOf(cur));
+  }
+  if (!list) list = '<p class="hint">이 세부 탭에는 아직 항목이 없어요. 아래에서 추가해 주세요.</p>';
+
+  const grp = cur === '*' ? '' : cur;
+  return `
+    <details class="item" data-sec="${B}.__opts" ${isOpen(`${B}.__opts`) ? 'open' : ''}>
+      <summary><span class="ttl">⚙️ 탭 전체 설정 · 모양</span></summary>
+      <div class="item-body">
+        <div class="row">${colsSelect(B + '.cols', '개')}${select(B + '.namePos', '이름 위치', { in: '알약 안 아래쪽', below: '알약 바로 밑' })}</div>
+        <div class="row">${select(B + '.nameFont', '이름 글꼴', { body: '본문 글꼴', serif: '명조', script: '필기체' })}${check(B + '.showName', '알약에 이름 표시')}</div>
+        ${text(B + '.intro', '탭 상단 문구 (선택)')}
+        <p class="hint">필기체는 영문이 가장 예쁘게 나와요. 한글은 손글씨체로 보여요.</p>
+      </div>
+    </details>
+    ${chips}
+    ${head}
+    ${list}
     <div class="row">
-      <button type="button" class="add" data-additem="${B}" data-type="others">+ 페어 추가 (알약)</button>
-      <button type="button" class="add" data-additem="${B}" data-type="others" data-kind="solo">+ 단독 추가 (동그라미)</button>
+      <button type="button" class="add" data-additem="${B}" data-type="others" data-grp="${esc(grp)}">+ 페어 추가 (알약)</button>
+      <button type="button" class="add" data-additem="${B}" data-type="others" data-kind="solo" data-grp="${esc(grp)}">+ 단독 추가 (동그라미)</button>
     </div>
-    <p class="hint">단독 항목이 연달아 있으면 한 줄에 동그라미로 모여요. 순서는 ↑↓로 바꿀 수 있어요.</p>
-    <p class="hint">필기체는 영문이 가장 예쁘게 나와요. 한글은 손글씨체로 보여요.</p>`;
+    <p class="hint">단독 항목이 연달아 있으면 한 줄에 동그라미로 모여요. 순서는 ↑↓로 바꿀 수 있어요.</p>`;
 }
 
 function friendsPanel(B, isOpen) {
@@ -2290,7 +2444,7 @@ function onField(e) {
     return commit();
   }
   // 입력 중에 편집기를 다시 그리면 한글 조합이 깨지므로, 목록 제목 글자만 따로 갱신
-  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || /\.(picShape|role|groupStyle|showAll)$/.test(path)) renderEditor();
+  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
   else refreshTitles();
   if (/^tabs\.\d+\.(name|icon)$/.test(path)) renderEdTabs();
   update();
@@ -2346,15 +2500,21 @@ ed.addEventListener('click', e => {
     forceOpen.add(`${d.addto}.${arr.length - 1}`);
     return update({ editor: true });
   }
-  // 서브 페어 목록 나누기
+  // 서브 페어 세부 탭
+  if (d.subtab !== undefined) {
+    (view.sub || (view.sub = {}))[d.base] = d.subtab;
+    return renderEditor();
+  }
   if (d.addgroup !== undefined) {
-    const g = getPath(state, d.base).groups;
-    g.push({ id: 'g' + Date.now().toString(36), title: `목록 ${g.length + 1}` });
+    const g = getPath(state, d.base).groups, id = 'g' + Date.now().toString(36);
+    g.push({ id, title: `세부 탭 ${g.length + 1}`, intro: '' });
+    (view.sub || (view.sub = {}))[d.base] = id;
     return update({ editor: true });
   }
   if (d.delgroup !== undefined) {
     const O = getPath(state, d.base), [g] = O.groups.splice(+d.delgroup, 1);
     O.items.forEach(it => { if (g && it.group === g.id) it.group = ''; });
+    (view.sub || (view.sub = {}))[d.base] = '*';
     return update({ editor: true });
   }
   if (d.autogroup !== undefined) {
@@ -2365,6 +2525,7 @@ ed.addEventListener('click', e => {
       return [k, found.id];
     }));
     O.items.forEach(it => { it.group = it.kind === 'solo' ? ids[it.role === 'b' ? 'b' : 'a'] : ids.pair; });
+    (view.sub || (view.sub = {}))[d.base] = '*';
     return update({ editor: true });
   }
   if (b.id === 'btnPeek') {
@@ -2402,12 +2563,15 @@ ed.addEventListener('click', e => {
         : pairItem({ a: charObj({ name: '새 캐릭터' }), b: charObj({ name: '유저' }) }),
       friends: () => friendItem({ name: '새 트친' }),
     };
-    list.push(make[d.type || d.additem]());
+    const made = make[d.type || d.additem]();
+    if (d.grp) made.group = d.grp;
+    list.push(made);
     forceOpen.add(`${d.additem}.items.${list.length - 1}`);
     return update({ editor: true });
   }
   if (d.move) {
-    const arr = getPath(state, d.move), i = +d.i, j = i + +d.dir;
+    const arr = getPath(state, d.move), i = +d.i, j = d.j !== undefined ? +d.j : i + +d.dir;
+    if (j < 0 || j >= arr.length || j === i) return;
     [arr[i], arr[j]] = [arr[j], arr[i]];
     if (/\.items$/.test(d.move)) view.flips = [];
     if (d.move === 'tabs' && view.tab === i) view.tab = j;
@@ -2458,7 +2622,7 @@ $('#btnCover').onclick = () => { view.opened = false; view.peek = false; send({ 
 
 $('#btnReset').onclick = () => {
   if (!confirm('모든 내용을 기본값으로 되돌릴까요?')) return;
-  state = clone(DEFAULT); view = { edTab: view.edTab, opened: false, tab: 0, flips: [], peek: false };
+  state = clone(DEFAULT); view = { edTab: view.edTab, opened: false, tab: 0, flips: [], peek: false, sub: {} };
   update({ editor: true });
 };
 
