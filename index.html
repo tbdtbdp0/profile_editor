@@ -33,6 +33,9 @@
   .btn-grp button + button { border-left: 1px solid var(--ed-line); }
   .btn-grp button:hover:not(:disabled) { background: #fff; }
   .ico-btn { min-width: 30px; text-align: center; }
+  .mus-prev { display: flex; align-items: center; justify-content: center; height: 34px; border: 1px solid var(--ed-line); border-radius: var(--r-s); background: #fff; }
+  .mus-chip { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; line-height: 1; }
+  .mus-chip.bg { box-shadow: inset 0 0 0 .5px rgba(0,0,0,.08); }
   #btnSave.dirty { color: var(--ed-accent); font-weight: 700; }
   #btnSave.dirty::after { content: "•"; margin-left: 4px; color: #e0674f; }
   .pre-prompt { margin: 0; padding: 0 12px 12px; font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; color: var(--ed-sub); max-height: 300px; overflow: auto; }
@@ -309,7 +312,7 @@ const DEFAULT = {
   },
   address: 'my-intro.page',
   // 배경 음악 (유튜브) — 표지를 누르는 순간부터 재생
-  music: { on: false, volume: 60, tracks: [] },
+  music: { on: false, volume: 60, btnIcon: '🎵', btnBg: '', btnColor: '', tracks: [] },
   // 비밀번호로 보이는 탭 나누기 (소스를 보면 내용을 알 수 있는 '가벼운 잠금')
   lock: { on: false, title: '비밀번호를 입력해 주세요', hint: '', wrong: '비밀번호가 맞지 않아요', codes: [] },
   // type: 기본 탭(profile/mains/others/friends) 또는 템플릿 탭(text/qna/rules/gallery/links → 내용은 pages[id])
@@ -1270,10 +1273,12 @@ body.no-anim section{animation:none}
 @media (hover:none){.cb-pic.copyable::before,.hero .copyable::before{content:"";position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;z-index:1;
   background:rgba(20,24,32,.55) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='1.6'><rect x='5.5' y='5.5' width='8' height='8' rx='2'/><path d='M10.5 5.5V4a1.5 1.5 0 00-1.5-1.5H4A1.5 1.5 0 002.5 4v5A1.5 1.5 0 004 10.5h1.5'/></svg>") center/12px no-repeat}}
 /* ---------- 배경 음악 (유튜브) ---------- */
-.mus-btn{border:0;cursor:pointer;font-size:14px;line-height:1;padding:0;transition:color .2s,transform .2s}
-.mus-btn.on{color:var(--accent)}
-.mus-btn.on::after{content:"";position:absolute;right:3px;top:4px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
-.ib:has(>.mus-btn),.mus-btn{position:relative}
+.mus-btn{position:relative;border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:0;
+  width:26px;height:26px;border-radius:50%;display:grid;place-items:center;transition:color .2s,transform .2s,filter .2s}
+.mus-btn.has-bg{box-shadow:inset 0 0 0 .5px rgba(0,0,0,.08)}
+.mus-btn:hover{filter:brightness(1.06)}
+.mus-btn.on::after{content:"";position:absolute;right:-1px;top:0;width:5px;height:5px;border-radius:50%;
+  background:var(--accent);box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
 .mus-pop{position:absolute;top:56px;left:14px;z-index:8;width:min(258px,calc(100% - 28px));padding:10px 12px 9px;border-radius:14px;
   font-family:var(--sys);background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);
   box-shadow:0 0 0 .5px rgba(0,0,0,.09),0 12px 30px -10px rgba(20,40,70,.35);animation:fade .2s}
@@ -1602,7 +1607,8 @@ ${coverHTML(c)}
     <div class="bar">
       <div class="lights"><i></i><i></i><i></i></div>
       ${musicOn
-        ? `<div class="glass grp"><button type="button" class="ib mus-btn" id="musBtn" aria-label="음악" title="음악">🎵</button></div>`
+        ? `<div class="glass grp"><button type="button" class="ib mus-btn ${isHex(mu.btnBg) ? 'has-bg' : ''}" id="musBtn" aria-label="음악" title="음악"
+            style="${isHex(mu.btnBg) ? `background:${mu.btnBg};` : ''}${isHex(mu.btnColor) ? `color:${mu.btnColor};` : ''}">${esc(String(mu.btnIcon ?? '🎵') || '🎵')}</button></div>`
         : `<div class="glass grp hide-m"><span class="ib">${ico.side}</span></div>`}
       <div class="glass grp hide-m"><span class="ib">${ico.back}</span><span class="ib dim">${ico.fwd}</span></div>
       <div class="glass addr"><span class="lk">${ico.lock}</span><span class="u" id="addr"></span><span class="rl">${ico.reload}</span></div>
@@ -1934,9 +1940,9 @@ const FONTS = ['Gowun Dodum', 'Noto Sans KR', 'Nanum Myeongjo', 'Gaegu', 'Jua', 
 // 기본 탭은 종류 이름(profile 등)을, 템플릿 탭은 탭 id 를 키로 사용
 const edKey = t => t.id;
 const edTabList = () => [
-  ['theme', '🎨', '테마'], ['cover', '✨', '표지', -1], ['window', '🧭', '탭 관리'],
+  ['theme', '🎨', '테마'], ['cover', '✨', '표지', -1], ['lock', '🔒', '비밀번호'], ['window', '🧭', '탭 관리'],
   ...state.tabs.map((t, i) => [edKey(t), t.icon || (BUILTIN_TABS[t.type] || PAGE_TEMPLATES[t.type] || {}).icon || '📄', t.name || '탭', i]),
-  ['music', '🎵', '음악'], ['lock', '🔒', '비밀번호'], ['deploy', '🚀', '배포'],
+  ['deploy', '🚀', '배포'],
 ];
 // 메인 페어 탭이 여러 개일 때, 미리보기의 카드 번호는 탭 순서대로 이어서 매겨짐
 function mainsOffset(B) {
@@ -2004,6 +2010,11 @@ function itemTitle(listPath, it) {
   }
   if ('name' in it) return `${it.emoji || ''} ${it.name || '이름 없음'}`.trim();
   return (it.title || it.q || (it.label ? `${it.emoji || ''} ${it.label}` : '') || it.caption || it.text || '항목').trim();
+}
+// 음악 버튼 미리보기 — 입력 중에 편집기를 다시 그리지 않고 글자만 갈아끼움
+function refreshMusChip() {
+  const el = document.querySelector('.mus-chip');
+  if (el) el.textContent = String(state.music.btnIcon ?? '🎵') || '🎵';
 }
 // 표지 지시문 미리보기 — 편집기를 다시 그리면 한글 조합이 깨지므로 글자만 갈아끼움
 function refreshPrompt() {
@@ -2336,9 +2347,32 @@ function musicPanel() {
   const M = state.music, list = M.tracks || (M.tracks = []);
   return `
     <p class="note">표지를 누르는 순간부터 유튜브 영상의 <b>소리만</b> 재생돼요. 영상은 보이지 않고,
-      주소창 왼쪽 <b>♪</b> 버튼을 누르면 곡을 넘기거나 영상을 띄워 볼 수 있어요.</p>
+      주소창 왼쪽 버튼을 누르면 곡을 넘기거나 영상을 띄워 볼 수 있어요.</p>
     ${check('music.on', '배경 음악 사용')}
-    ${!M.on ? '<p class="hint">꺼두면 ♪ 버튼도 나오지 않아요.</p>' : `
+    ${!M.on ? '<p class="hint">꺼두면 주소창 옆 음악 버튼도 나오지 않아요.</p>' : `
+      <div class="card">
+        <p class="card-title">🎛 음악 버튼 모양</p>
+        <div class="row-icon">
+          <label class="f">아이콘<input type="text" data-path="music.btnIcon" value="${esc(M.btnIcon ?? '')}" placeholder="🎵"></label>
+          <div class="f">미리보기
+            <div class="mus-prev"><span class="mus-chip ${isHex(M.btnBg) ? 'bg' : ''}"
+              style="${isHex(M.btnBg) ? `background:${M.btnBg};` : ''}${isHex(M.btnColor) ? `color:${M.btnColor};` : ''}">${esc(String(M.btnIcon ?? '🎵') || '🎵')}</span></div>
+          </div>
+        </div>
+        <p class="hint">이모지도 되고 글자도 돼요 — ♪ ♫ ♬ ✿ ☾ ✦ 🎧 📻 💿 🕊 🫧 …
+          이모지 모양이 마음에 안 들면 <b>♪</b> 같은 기호를 쓰면 깔끔해요.</p>
+        <div class="row">
+          <div class="f">버튼 배경색
+            <div class="acc"><input type="color" data-path="music.btnBg" value="${isHex(M.btnBg) ? M.btnBg : state.theme.accent}">
+              ${isHex(M.btnBg) ? `<button type="button" class="ghost" data-clear="music.btnBg">↺ 없애기</button>` : '<span class="hint">배경 없음</span>'}</div>
+          </div>
+          <div class="f">아이콘 색 (기호일 때)
+            <div class="acc"><input type="color" data-path="music.btnColor" value="${isHex(M.btnColor) ? M.btnColor : state.theme.accent}">
+              ${isHex(M.btnColor) ? `<button type="button" class="ghost" data-clear="music.btnColor">↺ 기본</button>` : '<span class="hint">기본색</span>'}</div>
+          </div>
+        </div>
+        <p class="hint">이모지는 그림이라 색이 바뀌지 않아요. 색을 바꾸려면 ♪ 같은 글자 기호를 쓰세요.</p>
+      </div>
       ${range('music.volume', '음량', 0, 100, '%')}
       <p class="grp">재생목록 ${list.length}곡</p>
       ${list.map((t, i, arr) => `
@@ -2499,16 +2533,17 @@ function renderEditor(resetScroll = false) {
 
   const L = state.labels;
   const panels = {
-    theme: () => ['🎨 테마', '', `
+    theme: () => ['🎨 테마', state.music.on ? '🎵 음악 켜짐' : '', `
       <div class="row">${color('theme.accent', '포인트 색 (전체)')}${color('theme.text', '글자 색')}</div>
       <div class="row">${color('theme.card', '페이지 배경')}
         <label class="f">본문 글꼴<select data-path="theme.font">${FONTS.map(f => `<option ${f === state.theme.font ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
       </div>
       <div class="row">${text('labels.a', '캐릭터 이름표')}${text('labels.b', '유저 이름표')}</div>
-      <p class="hint">블록마다 포인트 색을 따로 정하고 싶다면 각 탭의 항목 안에서 '포인트 색 (이 블록만)'을 바꿔주세요.</p>`],
+      <p class="hint">블록마다 포인트 색을 따로 정하고 싶다면 각 탭의 항목 안에서 '포인트 색 (이 블록만)'을 바꿔주세요.</p>
+      <p class="grp">배경 음악</p>
+      ${musicPanel()}`],
     cover: () => ['✨ 표지', COVER_TYPES[state.cover.type]?.label, coverPanel()],
     window: () => ['🧭 탭 관리', `${state.tabs.length}개`, tabsPanel()],
-    music: () => ['🎵 배경 음악', state.music.on ? `${state.music.tracks.length}곡` : '꺼짐', musicPanel()],
     lock: () => ['🔒 비밀번호', state.lock.on ? `${state.lock.codes.length}개` : '꺼짐', lockPanel()],
     deploy: () => ['🚀 사이트에 올리기', 'GitHub Pages', deployPanel()],
   };
@@ -2837,6 +2872,7 @@ function onField(e) {
   if ((el.type === 'checkbox' && /\.fold$/.test(path)) || path === 'lock.on' || path === 'music.on' || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
   else refreshTitles();
   if (path === 'cover.cPrompt') refreshPrompt();
+  if (path === 'music.btnIcon') refreshMusChip();
   if (/^tabs\.\d+\.(name|icon)$/.test(path)) renderEdTabs();
   update();
 }
@@ -3032,7 +3068,7 @@ ed.addEventListener('change', async e => {
   }
   if (el.tagName === 'SELECT' || el.type === 'checkbox') onField(e);
   // 색 고르기 창을 닫은 뒤에 '테마 색으로' 버튼 · 목록 점 색 갱신
-  if (el.type === 'color' && /\.accent$/.test(el.dataset.path || '')) renderEditor();
+  if (el.type === 'color' && /(\.accent|^music\.btn(Bg|Color))$/.test(el.dataset.path || '')) renderEditor();
 });
 
 $('#btnUndo').onclick = undo;
