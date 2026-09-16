@@ -273,9 +273,9 @@
    ========================================================= */
 const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', creator: '', link: '', desc: '', prompt: '', with: '' }, o);
 // kind: 'pair'(알약 · 두 명) / 'solo'(동그라미 · 한 명, a만 사용 · role로 캐릭터/유저 구분)
-const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', a: charObj(), b: charObj() }, o);
+const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', track: '', a: charObj(), b: charObj() }, o);
 const mainItem = (o = {}) => Object.assign({
-  accent: '', style: 'poster', showTitle: true, image: '', title: '', sub: '', tags: '', desc: '',
+  accent: '', style: 'poster', showTitle: true, track: '', image: '', title: '', sub: '', tags: '', desc: '',
   backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, picFade: 0, picFadeDir: 'bottom', cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
   frontMode: 'single', frontA: '', frontB: '', a: charObj(), b: charObj(),
 }, o);
@@ -308,6 +308,8 @@ const DEFAULT = {
     frost: '#bfe0f7', cream: '#fffdf8', sponge: '#f3d9a4', deco: '#e2445c', candle: true,
   },
   address: 'my-intro.page',
+  // 배경 음악 (유튜브) — 표지를 누르는 순간부터 재생
+  music: { on: false, volume: 60, tracks: [] },
   // 비밀번호로 보이는 탭 나누기 (소스를 보면 내용을 알 수 있는 '가벼운 잠금')
   lock: { on: false, title: '비밀번호를 입력해 주세요', hint: '', wrong: '비밀번호가 맞지 않아요', codes: [] },
   // type: 기본 탭(profile/mains/others/friends) 또는 템플릿 탭(text/qna/rules/gallery/links → 내용은 pages[id])
@@ -331,7 +333,7 @@ const DEFAULT = {
     desc: '안녕하세요!\n여기에 자기소개를 적어주세요.\n\n편하게 말 걸어주세요 :)',
   },
   mains: {
-    cols: 1, intro: '',
+    cols: 1, intro: '', showRole: true,
     items: [
       mainItem({
         title: 'A × B', sub: 'MAIN PAIR', tags: '태그 1, 태그 2', desc: '두 사람에 대한 소개를 적어주세요.',
@@ -443,6 +445,15 @@ function fnv1a(str) {
   return h.toString(16);
 }
 
+// 유튜브 주소(또는 id) 에서 영상 id 만 뽑아내기
+function ytId(u) {
+  const t = String(u || '').trim();
+  if (!t) return '';
+  if (/^[\w-]{11}$/.test(t)) return t;
+  const m = t.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/|\/live\/)([\w-]{11})/);
+  return m ? m[1] : '';
+}
+
 const clone = o => JSON.parse(JSON.stringify(o));
 const OLD_KEYS = ['v7', 'v6', 'v5', 'v4', 'v3', 'v2'].map(v => 'twt-intro-gen-' + v);
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
@@ -466,6 +477,9 @@ function migrate(s) {
   ['image', 'blend', 'size', 'hz', 'holo1', 'holo2', 'holo3', 'bokeh', 'bubble', 'reflect', 'glint'].forEach(k => delete nc[k]);
   d.cover = nc;
 
+  d.music = Object.assign(clone(DEFAULT.music), d.music);
+  d.music.tracks = (d.music.tracks || []).map((t, i) => Object.assign({ id: 't' + i, title: '', url: '' }, t));
+
   d.lock = Object.assign(clone(DEFAULT.lock), d.lock);
   d.lock.codes = (d.lock.codes || []).map((cd, i) => Object.assign({ id: 'c' + i, code: '', label: '', tabs: [] }, cd, { tabs: Array.isArray(cd.tabs) ? cd.tabs : [] }));
 
@@ -478,6 +492,21 @@ function migrate(s) {
   d.tabs.forEach(t => {
     if (t.id === t.type || d.pages[t.id]) return;
     d.pages[t.id] = BUILTIN_TABS[t.type] ? clone(DEFAULT[t.type]) : (PAGE_TEMPLATES[t.type] || PAGE_TEMPLATES.text).make();
+  });
+  // 복제한 기본 탭도 원본과 같은 기본값·항목 모양을 갖추도록 (새로 생긴 설정이 빠지지 않게)
+  const PAGE_FILL = {
+    profile: pg => { const e = Object.assign(clone(DEFAULT.profile), pg); if (!LAYOUTS[e.layout]) e.layout = 'stack';
+      e.info = (e.info || []).map(r => Object.assign({ k: '', v: '', fold: false }, r)); return e; },
+    mains: pg => { const m = Object.assign({ cols: 1, intro: '', showRole: true }, pg);
+      m.items = (m.items || []).map(it => mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) }))); return m; },
+    others: pg => { const o = Object.assign({ cols: 1, showName: true, namePos: 'in', nameFont: 'body', showRole: true, detailStyle: 'card', groups: [], groupStyle: 'title', showAll: true, intro: '' }, pg);
+      o.items = (o.items || []).map(it => pairItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) }))); return o; },
+    friends: pg => { const f = Object.assign({ cols: 1, intro: '' }, pg);
+      f.items = (f.items || []).map(it => { const x = friendItem(it); delete x.handle; delete x.linkText; return x; }); return f; },
+  };
+  d.tabs.forEach(t => {
+    if (t.id === t.type || !PAGE_FILL[t.type] || !d.pages[t.id]) return;
+    d.pages[t.id] = PAGE_FILL[t.type](d.pages[t.id]);
   });
   d.profile = Object.assign(clone(DEFAULT.profile), d.profile);
   if (!LAYOUTS[d.profile.layout]) d.profile.layout = 'stack';
@@ -508,6 +537,7 @@ function migrate(s) {
     d.mains = { cols: 1, intro: '', items: [one] };
   }
   delete d.main;
+  d.mains = Object.assign({ cols: 1, intro: '', showRole: true }, d.mains);
   d.mains.items = d.mains.items.map(it => { const m = mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })); delete m.textGlow; return m; });
 
   if (d.friends.items?.some(it => 'layout' in it)) {
@@ -930,13 +960,15 @@ function backBg(m) {
 
 function mainCard(m, i, labels) {
   const pic = c => c.image ? `<img src="${c.image}" alt="">` : '';
+  // 메인 페어는 '대화한 캐릭터' 줄을 쓰지 않음 (서브 페어 전용)
+  const nw = c => Object.assign({}, c, { with: '' });
   // 사진 가장자리를 그라데이션으로 투명하게 — 뒷배경 이미지와 자연스럽게 섞이도록
   const fade = Math.max(0, Math.min(100, Number(m.picFade) || 0));
   const hero = m.backLayout === 'hero' && (m.a.image || m.b.image)
     ? `<div class="hero">${[m.a, m.b].map(c => `<span class="${c.image && c.prompt ? 'copyable' : ''}" ${c.image ? copyAttr(c.prompt) : ''}>${c.image ? `<img src="${c.image}" alt="">` : ''}</span>`).join('')}</div>` : '';
   const withPics = m.backLayout !== 'hero';
   return `<div class="mcard" ${accentStyle(m.accent)}>
-    <div class="flip ${m.style === 'postcard' ? 'postcard' : 'poster'}" data-fi="${i}" role="button" tabindex="0" aria-label="카드 뒤집기">
+    <div class="flip ${m.style === 'postcard' ? 'postcard' : 'poster'}" data-fi="${i}" ${ytId(m.track) ? `data-mus="${ytId(m.track)}"` : ''} role="button" tabindex="0" aria-label="카드 뒤집기">
       <div class="flip-inner">
         <div class="face front">
           ${m.frontMode === 'duo'
@@ -952,8 +984,8 @@ function mainCard(m, i, labels) {
             ${tagsHTML(m.tags)}
           </div>
           <div class="cols">
-            ${charHTML(m.a, labels.a, withPics ? pic(m.a) : '', !withPics && !!m.a.image)}
-            ${charHTML(m.b, labels.b, withPics ? pic(m.b) : '', !withPics && !!m.b.image)}
+            ${charHTML(nw(m.a), labels.a, withPics ? pic(m.a) : '', !withPics && !!m.a.image)}
+            ${charHTML(nw(m.b), labels.b, withPics ? pic(m.b) : '', !withPics && !!m.b.image)}
           </div>
           ${m.desc ? `<p class="bk-desc">${nl(m.desc)}</p>` : ''}
         </div>
@@ -965,8 +997,10 @@ function mainCard(m, i, labels) {
 
 function mainsHTML(ms, labels) {
   if (!ms.items.length) return `<p class="empty">아직 등록된 메인 페어가 없어요</p>`;
+  // CHARACTER / USER 이름표 끄기
+  const lb = ms.showRole === false ? { a: '', b: '' } : labels;
   return `${ms.intro ? `<p class="tab-intro">${nl(ms.intro)}</p>` : ''}
-    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, labels)).join('')}</div>`;
+    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, lb)).join('')}</div>`;
 }
 
 function othersHTML(o, labels, uid = 'o') {
@@ -981,12 +1015,12 @@ function othersHTML(o, labels, uid = 'o') {
   const show = o.showName !== false, below = show && o.namePos === 'below';
   const acc = p => `${accentStyle(p.accent)} ${isHex(p.accent) ? `data-accent="${p.accent}"` : ''}`;
   const pairBtn = (p, i) => `
-        <button type="button" class="dpw ${below ? 'below' : ''}" data-pd="${uid}-${i}" ${acc(p)}>
+        <button type="button" class="dpw ${below ? 'below' : ''}" data-pd="${uid}-${i}" ${ytId(p.track) ? `data-mus="${ytId(p.track)}"` : ''} ${acc(p)}>
           <span class="dp">${side(p.a, 'l')}${side(p.b, 'r')}${show && !below ? `<span class="shade"></span>${cap(p)}` : ''}</span>
           ${below ? cap(p) : ''}
         </button>`;
   const soloBtn = (p, i) => `
-          <button type="button" class="dpw solo" data-pd="${uid}-${i}" ${acc(p)}>
+          <button type="button" class="dpw solo" data-pd="${uid}-${i}" ${ytId(p.track) ? `data-mus="${ytId(p.track)}"` : ''} ${acc(p)}>
             <span class="sp s">${p.a.image ? `<img src="${p.a.image}" alt="">` : `<span class="ini">${esc(Array.from(soloName(p))[0])}</span>`}</span>
             ${show ? `<span class="dp-nm">${esc(soloName(p))}</span>` : ''}
           </button>`;
@@ -1123,6 +1157,11 @@ function buildPage(d, init) {
     plus:  svg(18, '<path d="M10 4.5v11M4.5 10h11"/>'),
     tabs:  svg(18, '<rect x="3" y="6" width="10" height="10" rx="2"/><path d="M7 3.5h7.5A2 2 0 0116.5 5.5V13"/>'),
   };
+  // 배경 음악 — 재생목록(유튜브) + 항목마다 지정한 노래
+  const mu = Object.assign({ on: false, volume: 60, tracks: [] }, d.music);
+  const muList = (mu.tracks || []).map(t => ({ i: ytId(t.url), t: String(t.title || '') })).filter(x => x.i);
+  const musicOn = !!mu.on;
+
   // 비밀번호 잠금 — 미리보기에서는 init.unlock 으로 건너뜀, 내보낸 파일에는 항상 들어감
   const lk = Object.assign({ codes: [] }, d.lock);
   const lkCodes = (lk.codes || []).filter(x => String(x.code || '').length).map(x => ({
@@ -1230,6 +1269,33 @@ body.no-anim section{animation:none}
 .copy-name::after{bottom:auto;top:-30px}
 @media (hover:none){.cb-pic.copyable::before,.hero .copyable::before{content:"";position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;z-index:1;
   background:rgba(20,24,32,.55) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='1.6'><rect x='5.5' y='5.5' width='8' height='8' rx='2'/><path d='M10.5 5.5V4a1.5 1.5 0 00-1.5-1.5H4A1.5 1.5 0 002.5 4v5A1.5 1.5 0 004 10.5h1.5'/></svg>") center/12px no-repeat}}
+/* ---------- 배경 음악 (유튜브) ---------- */
+.mus-btn{border:0;cursor:pointer;font-size:14px;line-height:1;padding:0;transition:color .2s,transform .2s}
+.mus-btn.on{color:var(--accent)}
+.mus-btn.on::after{content:"";position:absolute;right:3px;top:4px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.ib:has(>.mus-btn),.mus-btn{position:relative}
+.mus-pop{position:absolute;top:56px;left:14px;z-index:8;width:min(258px,calc(100% - 28px));padding:10px 12px 9px;border-radius:14px;
+  font-family:var(--sys);background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);
+  box-shadow:0 0 0 .5px rgba(0,0,0,.09),0 12px 30px -10px rgba(20,40,70,.35);animation:fade .2s}
+.mus-t{margin:0 0 7px;font-size:12.5px;font-weight:600;color:#1d1d1f;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mus-row{display:flex;align-items:center;gap:4px}
+.mus-k{border:0;background:none;cursor:pointer;color:#4a4a50;font:inherit;font-size:13px;line-height:1;white-space:nowrap;
+  width:28px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;transition:background .15s,color .15s}
+.mus-k:hover{background:rgba(0,0,0,.06);color:#1d1d1f}
+.mus-k.big{font-size:12px;color:#1d1d1f}
+.mus-k.wide{width:auto;padding:0 9px;font-size:11.5px;font-weight:600;color:#6b6b72}
+.mus-k.wide.on{background:var(--accent);color:#fff}
+.mus-sp{flex:1}
+.yt-wrap{position:fixed;right:14px;bottom:14px;z-index:30;width:196px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000;
+  opacity:0;pointer-events:none;transform:translateY(10px) scale(.94);transition:opacity .25s,transform .25s}
+.yt-wrap.on{opacity:1;pointer-events:auto;transform:none;box-shadow:0 16px 36px -10px rgba(0,0,0,.5)}
+.yt-wrap iframe{width:100%;height:100%;border:0;display:block}
+@media (max-width:600px){
+  .mus-pop{top:52px;left:10px;width:min(258px,calc(100% - 20px))}
+  .yt-wrap{right:10px;bottom:10px;width:160px}
+}
+
 .toast{position:fixed;left:50%;bottom:26px;z-index:60;transform:translate(-50%,16px);background:rgba(28,28,30,.9);color:#fff;font:500 13px var(--sys);padding:9px 18px;border-radius:99px;opacity:0;transition:.25s;pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
@@ -1535,7 +1601,9 @@ ${coverHTML(c)}
   <div class="chrome">
     <div class="bar">
       <div class="lights"><i></i><i></i><i></i></div>
-      <div class="glass grp hide-m"><span class="ib">${ico.side}</span></div>
+      ${musicOn
+        ? `<div class="glass grp"><button type="button" class="ib mus-btn" id="musBtn" aria-label="음악" title="음악">🎵</button></div>`
+        : `<div class="glass grp hide-m"><span class="ib">${ico.side}</span></div>`}
       <div class="glass grp hide-m"><span class="ib">${ico.back}</span><span class="ib dim">${ico.fwd}</span></div>
       <div class="glass addr"><span class="lk">${ico.lock}</span><span class="u" id="addr"></span><span class="rl">${ico.reload}</span></div>
       <div class="glass grp hide-m"><span class="ib">${ico.share}</span><span class="ib">${ico.plus}</span><span class="ib">${ico.tabs}</span></div>
@@ -1544,6 +1612,17 @@ ${coverHTML(c)}
       <span class="ind" id="ind"></span>
       ${d.tabs.map((tb, i) => `<button type="button" class="tab" data-tab="${i}">${tb.icon ? `<span class="fav">${esc(tb.icon)}</span>` : ''}<span class="ttl">${esc(tb.name)}</span></button>`).join('')}
     </div>
+    ${musicOn ? `<div class="mus-pop" id="musPop" hidden>
+      <p class="mus-t" id="musT">음악</p>
+      <div class="mus-row">
+        <button type="button" class="mus-k" id="musPrev" aria-label="이전 곡">⏮</button>
+        <button type="button" class="mus-k big" id="musPlay" aria-label="재생">▶</button>
+        <button type="button" class="mus-k" id="musNext" aria-label="다음 곡">⏭</button>
+        <span class="mus-sp"></span>
+        <button type="button" class="mus-k wide" id="musShow">영상</button>
+        <a class="mus-k" id="musLink" href="https://www.youtube.com" target="_blank" rel="noopener" title="유튜브에서 열기">↗</a>
+      </div>
+    </div>` : ''}
   </div>
 
   <div class="content" id="content"><div class="inner">
@@ -1562,6 +1641,7 @@ ${coverHTML(c)}
   </div>` : ''}
 </div>
 
+${musicOn ? '<div class="yt-wrap" id="ytWrap"><div id="ytFrame"></div></div>' : ''}
 <div class="sheet" id="sheet"><div class="sheet-card" id="sheetCard"><button type="button" class="x-btn" id="xBtn" aria-label="닫기">✕</button><div id="sheetBody"></div></div></div>
 <div class="toast" id="toast"></div>
 
@@ -1596,6 +1676,93 @@ ${coverHTML(c)}
   }
   document.querySelectorAll('.tab').forEach(function(a){ a.addEventListener('click', function(){ body.classList.remove('no-anim'); show(+a.dataset.tab); }); });
 
+  /* 배경 음악 (유튜브) — 표지를 누르는 순간 재생 시작 */
+  var MUS = ${musicOn ? safeJSON({ vol: Math.max(0, Math.min(100, Number(mu.volume) || 0)), list: muList, auto: !init.mute }) : 'null'};
+  var musPlay1 = function(){}, musItem = function(){}, musBack = function(){};
+  if (MUS) (function(){
+    var yt = null, ready = false, idx = 0, itemId = '', curId = '', playing = false, want = false;
+    var btn = $('musBtn'), pop = $('musPop'), wrap = $('ytWrap');
+    var elT = $('musT'), elPlay = $('musPlay'), elLink = $('musLink'), elShow = $('musShow');
+    var bgmId = function(){ return MUS.list.length ? MUS.list[idx % MUS.list.length].i : ''; };
+    var bgmTitle = function(){ return MUS.list.length ? MUS.list[idx % MUS.list.length].t : ''; };
+    var wantId = function(){ return itemId || bgmId(); };
+
+    function sync(){
+      var id = curId || wantId();
+      var t = itemId ? '' : bgmTitle();
+      if (!t) { try { t = yt && yt.getVideoData ? (yt.getVideoData().title || '') : ''; } catch (e) {} }
+      elT.textContent = t || (id ? (ready ? '재생 중' : '불러오는 중…') : '노래가 없어요');
+      elPlay.textContent = playing ? '❚❚' : '▶';
+      elLink.href = id ? 'https://www.youtube.com/watch?v=' + id : 'https://www.youtube.com';
+      btn.classList.toggle('on', playing);
+      var many = MUS.list.length > 1;
+      $('musPrev').disabled = $('musNext').disabled = !many;
+      $('musPrev').style.opacity = $('musNext').style.opacity = many ? '' : '.3';
+    }
+    function apply(){
+      var id = wantId();
+      if (!ready || !id) { sync(); return; }
+      if (id !== curId) {
+        curId = id;
+        playing ? yt.loadVideoById(id) : yt.cueVideoById(id);
+        setTimeout(sync, 900);
+      } else if (playing) yt.playVideo();
+      sync();
+    }
+    function setPlay(on){
+      playing = on;
+      if (!ready) { want = on; sync(); return; }
+      if (on) { if (curId !== wantId()) apply(); else yt.playVideo(); }
+      else yt.pauseVideo();
+      sync();
+    }
+    function step(d){ if (!MUS.list.length) return; idx = (idx + d + MUS.list.length) % MUS.list.length; itemId = ''; apply(); }
+
+    musPlay1 = function(){ if (!want && !playing) { want = true; setPlay(true); } };
+    musItem = function(id){ if (!id || itemId === id) return; itemId = id; apply(); if (playing) setPlay(true); };
+    musBack = function(){ if (!itemId) return; itemId = ''; apply(); };
+
+    btn.addEventListener('click', function(){ pop.hidden = !pop.hidden; });
+    document.addEventListener('click', function(e){
+      if (!pop.hidden && !pop.contains(e.target) && e.target !== btn) pop.hidden = true;
+    });
+    elPlay.addEventListener('click', function(){ setPlay(!playing); });
+    $('musPrev').addEventListener('click', function(){ step(-1); });
+    $('musNext').addEventListener('click', function(){ step(1); });
+    elShow.addEventListener('click', function(){
+      var on = wrap.classList.toggle('on');
+      elShow.classList.toggle('on', on);
+      elShow.textContent = on ? '숨김' : '영상';
+    });
+
+    window.__musVol = function(v){ MUS.vol = v; if (ready) try { yt.setVolume(v); } catch (e) {} };
+
+    window.onYouTubeIframeAPIReady = function(){
+      yt = new YT.Player('ytFrame', {
+        width: '196', height: '110',
+        playerVars: { autoplay: 0, controls: 1, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3 },
+        events: {
+          onReady: function(){
+            ready = true;
+            try { yt.setVolume(MUS.vol); } catch (e) {}
+            if (want) { playing = true; }
+            apply();
+          },
+          onStateChange: function(e){
+            if (e.data === YT.PlayerState.ENDED) { itemId ? (itemId = '', apply()) : step(1); return; }
+            if (e.data === YT.PlayerState.PLAYING) playing = true;
+            if (e.data === YT.PlayerState.PAUSED) playing = false;
+            sync();
+          },
+        },
+      });
+    };
+    var tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    sync();
+  })();
+
   /* 비밀번호 — 맞는 비밀번호에 묶인 탭만 남기고 나머지는 지움 */
   var gate = $('gate');
   if (gate) {
@@ -1629,6 +1796,7 @@ ${coverHTML(c)}
   var busy = false;
   function enter(){
     if (busy) return; busy = true;
+    if (MUS && MUS.auto) musPlay1();
     body.classList.remove('no-anim');
     body.classList.add('popping');
     setTimeout(function(){ body.classList.add('opened'); busy = false; notify({ opened: true }); }, ${enterDelay});
@@ -1656,7 +1824,11 @@ ${coverHTML(c)}
   /* 메인 페어 카드 뒤집기 */
   var flips = [].slice.call(document.querySelectorAll('.flip'));
   function flipState(){ return flips.map(function(f, i){ return f.classList.contains('on') ? i : -1; }).filter(function(i){ return i >= 0; }); }
-  function setFlip(el, on){ body.classList.remove('no-anim'); el.classList.toggle('on', on); notify({ flips: flipState() }); }
+  function setFlip(el, on){
+    body.classList.remove('no-anim'); el.classList.toggle('on', on);
+    if (on) { if (el.dataset.mus) musItem(el.dataset.mus); } else if (el.dataset.mus) musBack();
+    notify({ flips: flipState() });
+  }
   ${safeJSON(init.flips || [])}.forEach(function(i){ if (flips[i]) flips[i].classList.add('on'); });
   flips.forEach(function(el){
     el.addEventListener('click', function(e){ if (e.target.closest('.copyable, a')) return; setFlip(el, !el.classList.contains('on')); });
@@ -1675,9 +1847,10 @@ ${coverHTML(c)}
       if (src) img.src = src.src;
     });
     if (btn.dataset.accent) card.style.setProperty('--accent', btn.dataset.accent); else card.style.removeProperty('--accent');
+    if (btn.dataset.mus) musItem(btn.dataset.mus);
     $('sheet').classList.add('on');
   }
-  function closeSheet(){ $('sheet').classList.remove('on'); }
+  function closeSheet(){ if ($('sheet').classList.contains('on')) musBack(); $('sheet').classList.remove('on'); }
   document.querySelectorAll('.dpw').forEach(function(b){ b.addEventListener('click', function(){ openSheet(b); }); });
 
   /* 서브 페어 목록 칩 */
@@ -1744,6 +1917,7 @@ ${coverHTML(c)}
     if (m.__cmd === 'tab') { body.classList.remove('no-anim'); body.classList.add('opened'); show(m.tab); }
     if (m.__cmd === 'flip' && flips[m.i]) setFlip(flips[m.i], !!m.on);
     if (m.__cmd === 'pic' && flips[m.i]) flips[m.i].querySelector('.back').style.setProperty('--pic', m.v);
+    if (m.__cmd === 'musvol' && window.__musVol) window.__musVol(m.v);
     if (m.__cmd === 'vars') for (var k in m.vars) root.style.setProperty(k, m.vars[k]);
   });
   show(tab);
@@ -1762,7 +1936,7 @@ const edKey = t => t.id;
 const edTabList = () => [
   ['theme', '🎨', '테마'], ['cover', '✨', '표지', -1], ['window', '🧭', '탭 관리'],
   ...state.tabs.map((t, i) => [edKey(t), t.icon || (BUILTIN_TABS[t.type] || PAGE_TEMPLATES[t.type] || {}).icon || '📄', t.name || '탭', i]),
-  ['lock', '🔒', '비밀번호'], ['deploy', '🚀', '배포'],
+  ['music', '🎵', '음악'], ['lock', '🔒', '비밀번호'], ['deploy', '🚀', '배포'],
 ];
 // 메인 페어 탭이 여러 개일 때, 미리보기의 카드 번호는 탭 순서대로 이어서 매겨짐
 function mainsOffset(B) {
@@ -1810,13 +1984,13 @@ const accentField = path => {
 const colsSelect = (path, unit) => select(path, '한 줄에', { 1: `1${unit}씩`, 2: `2${unit}씩` }, true);
 
 // 캐릭터 한 명 입력칸 (메인/서브 페어 공통)
-function charEditor(path, title, { meta = true, imgLabel = '사진 (선택)' } = {}) {
+function charEditor(path, title, { meta = true, withField = !meta, imgLabel = '사진 (선택)' } = {}) {
   return `<div class="card">
     <p class="card-title">${title}</p>
     <div class="row">${text(`${path}.name`, '이름')}${imgField(`${path}.image`, imgLabel)}</div>
     ${meta ? `<div class="row">${text(`${path}.platform`, '플랫폼')}${text(`${path}.creator`, '제작자')}</div>
-    ${url(`${path}.link`, '링크 (선택)')}`
-      : text(`${path}.with`, '대화한 캐릭터 (선택)', '예: 캐릭터 A · 캐릭터 B')}
+    ${url(`${path}.link`, '링크 (선택)')}` : ''}
+    ${withField ? text(`${path}.with`, '대화한 캐릭터 (선택)', '예: 캐릭터 A · 캐릭터 B') : ''}
     ${area(`${path}.desc`, '소개글', 3)}
     ${area(`${path}.prompt`, '이미지 프롬프트 (선택 · 사진을 누르면 복사돼요)', 2)}
   </div>`;
@@ -1991,6 +2165,7 @@ function mainsPanel(B, isOpen) {
   const L = state.labels, ms = getPath(state, B), off = mainsOffset(B), ti = state.tabs.findIndex(t => dataPath(t) === B);
   return `
     <div class="row">${colsSelect(B + '.cols', '개')}</div>
+    ${check(B + '.showRole', `이름 위에 '${esc(L.a)} · ${esc(L.b)}' 이름표 표시`)}
     ${text(B + '.intro', '탭 상단 문구 (선택)')}
     ${ms.items.map((m, i, arr) => {
       const p = `${B}.items.${i}`, flipped = view.flips.includes(off + i);
@@ -1998,6 +2173,7 @@ function mainsPanel(B, isOpen) {
         <div class="f">카드 비율${picker(`${p}.style`, CARD_STYLES, 'two')}</div>
         <button type="button" data-flipi="${off + i}" data-tabi="${ti}" class="${flipped ? 'on' : ''}">${flipped ? '↺ 앞면 보기' : '↻ 뒷면 보기'}</button>
         ${accentField(`${p}.accent`)}
+        ${state.music.on ? text(`${p}.track`, '이 페어의 노래 (유튜브 주소 · 선택)', '카드를 뒤집으면 이 노래로 바뀌어요') : ''}
         <p class="grp">앞면</p>
         <div class="f">앞면 이미지${picker(`${p}.frontMode`, FRONT_MODES, 'two')}</div>
         ${m.frontMode === 'duo'
@@ -2018,7 +2194,7 @@ function mainsPanel(B, isOpen) {
         <p class="hint">사진 가장자리를 그라데이션으로 지워서 뒷면 배경 이미지와 섞어요. 위의 '캐릭터 · 유저 칸에 배경 블록 깔기'를 끄면 더 자연스러워요.</p>
         ${text(`${p}.tags`, '태그', '쉼표(,)로 구분')}
         ${charEditor(`${p}.a`, `🤖 ${esc(L.a)}`)}
-        ${charEditor(`${p}.b`, `🙋 ${esc(L.b)}`, { meta: false })}
+        ${charEditor(`${p}.b`, `🙋 ${esc(L.b)}`, { meta: false, withField: false })}
         ${area(`${p}.desc`, '페어 소개 (선택)', 3)}`, isOpen, m.accent);
     }).join('')}
     <button type="button" class="add" data-additem="${B}" data-type="mains">+ 메인 페어 추가</button>
@@ -2090,6 +2266,7 @@ function othersPanel(B, isOpen) {
       <div class="f">형태${picker(`${P}.kind`, PAIR_KINDS, 'two')}</div>
       ${solo ? select(`${P}.role`, '누구인가요', { a: `🤖 캐릭터 (${L.a})`, b: `🙋 유저 (${L.b})` }) : ''}
       ${accentField(`${P}.accent`)}
+      ${state.music.on ? text(`${P}.track`, '이 항목의 노래 (유튜브 주소 · 선택)', '눌러서 상세 내용을 보면 이 노래로 바뀌어요') : ''}
       ${solo
         ? charEditor(`${P}.a`, p.role === 'b' ? `🙋 ${esc(L.b)}` : `🤖 ${esc(L.a)}`, { meta: p.role !== 'b', imgLabel: '사진' })
         : `${charEditor(`${P}.a`, `🤖 왼쪽 · ${esc(L.a)}`, { imgLabel: '사진' })}
@@ -2153,6 +2330,39 @@ function friendsPanel(B, isOpen) {
     <button type="button" class="add" data-additem="${B}" data-type="friends">+ 트친 추가</button>
     <p class="hint">사진을 넣으면 이모지 대신 사진이 동그랗게 보여요. 둘 다 없으면 이름 첫 글자가 들어가요.</p>
     <p class="hint">링크를 넣으면 카드 전체를 눌러서 이동해요. 따로 버튼은 없어요.</p>`;
+}
+
+function musicPanel() {
+  const M = state.music, list = M.tracks || (M.tracks = []);
+  return `
+    <p class="note">표지를 누르는 순간부터 유튜브 영상의 <b>소리만</b> 재생돼요. 영상은 보이지 않고,
+      주소창 왼쪽 <b>♪</b> 버튼을 누르면 곡을 넘기거나 영상을 띄워 볼 수 있어요.</p>
+    ${check('music.on', '배경 음악 사용')}
+    ${!M.on ? '<p class="hint">꺼두면 ♪ 버튼도 나오지 않아요.</p>' : `
+      ${range('music.volume', '음량', 0, 100, '%')}
+      <p class="grp">재생목록 ${list.length}곡</p>
+      ${list.map((t, i, arr) => `
+        <div class="card">
+          <div class="grp-row">
+            <input type="text" data-path="music.tracks.${i}.url" value="${esc(t.url)}" placeholder="유튜브 주소 붙여넣기">
+            <button type="button" class="ghost" data-move="music.tracks" data-i="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" class="ghost" data-move="music.tracks" data-i="${i}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" class="ghost danger" data-del="music.tracks" data-i="${i}">✕</button>
+          </div>
+          ${text(`music.tracks.${i}.title`, '곡 이름 (비워두면 유튜브 제목을 그대로 써요)')}
+          ${t.url && !ytId(t.url) ? '<p class="hint">유튜브 주소로 보이지 않아요. youtu.be/… 또는 youtube.com/watch?v=… 형태로 넣어주세요.</p>' : ''}
+        </div>`).join('')}
+      ${list.length ? '' : '<p class="hint">노래를 하나도 넣지 않아도, 아래 항목별 노래만으로 쓸 수 있어요.</p>'}
+      <button type="button" class="add" data-addtrack>+ 노래 추가</button>
+      <p class="hint">여러 곡을 넣으면 순서대로 이어서 재생되고, 마지막 곡이 끝나면 처음으로 돌아가요.
+        방문자는 ♪ 버튼에서 ⏮ ⏭ 로 곡을 넘길 수 있어요.</p>
+      <p class="grp">항목마다 다른 노래</p>
+      <p class="hint">메인 페어는 카드를 뒤집을 때, 서브 페어는 눌러서 상세 내용을 볼 때 그 항목의 노래로 바뀌어요.
+        각 탭의 항목 안에서 '이 페어의 노래' 칸에 주소를 넣어주세요. 원래대로 돌아가면 재생목록으로 되돌아가요.</p>
+      <p class="note">⚠️ 알아두세요 — 곡 앞에 <b>유튜브 광고</b>가 붙을 수 있어요.
+        영상이 삭제되거나 '퍼가기 금지'로 바뀌면 소리가 나지 않아요.
+        휴대폰은 화면을 끄거나 다른 앱으로 넘어가면 소리가 멈춰요.</p>
+      <p class="hint">편집 중에는 자동 재생되지 않아요. 미리보기의 ♪ 버튼에서 ▶ 를 눌러 확인해 주세요.</p>`}`;
 }
 
 function lockPanel() {
@@ -2298,6 +2508,7 @@ function renderEditor(resetScroll = false) {
       <p class="hint">블록마다 포인트 색을 따로 정하고 싶다면 각 탭의 항목 안에서 '포인트 색 (이 블록만)'을 바꿔주세요.</p>`],
     cover: () => ['✨ 표지', COVER_TYPES[state.cover.type]?.label, coverPanel()],
     window: () => ['🧭 탭 관리', `${state.tabs.length}개`, tabsPanel()],
+    music: () => ['🎵 배경 음악', state.music.on ? `${state.music.tracks.length}곡` : '꺼짐', musicPanel()],
     lock: () => ['🔒 비밀번호', state.lock.on ? `${state.lock.codes.length}개` : '꺼짐', lockPanel()],
     deploy: () => ['🚀 사이트에 올리기', 'GitHub Pages', deployPanel()],
   };
@@ -2516,7 +2727,7 @@ function deployPanel() {
    ========================================================= */
 let renderTimer;
 // 미리보기는 잠금을 풀어서 보여주고 (lockTest 를 켜면 잠금 화면 확인), 내보내기·배포에는 잠금이 들어감
-const pvInit = () => Object.assign({}, view, { unlock: !view.lockTest });
+const pvInit = () => Object.assign({}, view, { unlock: !view.lockTest, mute: true });
 // 저장하지 않은 변경이 있는지 — 자동 저장을 하지 않으므로 티가 나게 표시
 let dirty = false;
 function markDirty(v) { dirty = v; $('#btnSave').classList.toggle('dirty', v); }
@@ -2602,20 +2813,28 @@ function onField(e) {
     const val = el.parentElement.querySelector('.val');
     if (val) val.textContent = v + (el.dataset.unit || '');
   }
+  if (path === 'music.volume') {
+    send({ __cmd: 'musvol', v });
+    clearTimeout(renderTimer);
+    markDirty(true);
+    return commit();
+  }
   if (LIVE.test(path)) {
     const c = state.cover;
     send({ __cmd: 'vars', vars: { '--csize': c.cakeSize + 'px', '--sx': c.sx + '%', '--sy': c.sy + '%', '--sw': c.sw + '%', '--sr': c.sr + 'deg', '--lift': c.lift + '%' } });
     clearTimeout(renderTimer);
+    markDirty(true);
     return commit();
   }
   const pm = path.match(PIC);
   if (pm && state.tabs.some(t => t.type === 'mains' && dataPath(t) === pm[1])) {
     send({ __cmd: 'pic', i: mainsOffset(pm[1]) + +pm[2], v });
     clearTimeout(renderTimer);
+    markDirty(true);
     return commit();
   }
   // 입력 중에 편집기를 다시 그리면 한글 조합이 깨지므로, 목록 제목 글자만 따로 갱신
-  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || path === 'lock.on' || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
+  if ((el.type === 'checkbox' && /\.fold$/.test(path)) || path === 'lock.on' || path === 'music.on' || /\.(picShape|role|groupStyle|showAll|group)$/.test(path)) renderEditor();
   else refreshTitles();
   if (path === 'cover.cPrompt') refreshPrompt();
   if (/^tabs\.\d+\.(name|icon)$/.test(path)) renderEdTabs();
@@ -2691,6 +2910,10 @@ ed.addEventListener('click', e => {
     view.flips = [];
     update();
     return goEdTab(id);
+  }
+  if (d.addtrack !== undefined) {
+    state.music.tracks.push({ id: 't' + Date.now().toString(36), title: '', url: '' });
+    return update({ editor: true });
   }
   if (d.addcode !== undefined) {
     state.lock.codes.push({ id: 'c' + Date.now().toString(36), code: '', label: '', tabs: state.tabs.map(t => t.id) });
