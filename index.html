@@ -279,7 +279,7 @@ const mainItem = (o = {}) => Object.assign({
   backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, picFade: 0, picFadeDir: 'bottom', cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
   frontMode: 'single', frontA: '', frontB: '', a: charObj(), b: charObj(),
 }, o);
-const friendItem = (o = {}) => Object.assign({ accent: '', emoji: '', name: '', desc: '', link: '', linkText: '보러 가기' }, o);
+const friendItem = (o = {}) => Object.assign({ accent: '', emoji: '', image: '', name: '', desc: '', link: '' }, o);
 
 // 표지 종류별 기본 안내 문구 · 글자 색 (종류를 바꿀 때 기본값이면 같이 바꿔줌)
 const COVER_DEFAULTS = {
@@ -511,9 +511,9 @@ function migrate(s) {
   d.mains.items = d.mains.items.map(it => { const m = mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })); delete m.textGlow; return m; });
 
   if (d.friends.items?.some(it => 'layout' in it)) {
-    d.friends = { cols: d.friends.cols || 1, intro: d.friends.intro || '', items: d.friends.items.map(it => friendItem({ name: it.name, desc: it.desc, link: it.link, linkText: it.linkText })) };
+    d.friends = { cols: d.friends.cols || 1, intro: d.friends.intro || '', items: d.friends.items.map(it => friendItem({ name: it.name, desc: it.desc, link: it.link })) };
   }
-  d.friends.items = d.friends.items.map(it => { const f = friendItem(it); delete f.handle; return f; });
+  d.friends.items = d.friends.items.map(it => { const f = friendItem(it); delete f.handle; delete f.linkText; return f; });
   return d;
 }
 // 자동 저장은 쓰지 않음 (사진이 많으면 브라우저 저장 공간을 크게 잡아먹음).
@@ -1089,16 +1089,22 @@ function tabHTML(tb, d) {
 }
 
 function friendsHTML(f) {
+  // 사진 > 이모지 > 이름 첫 글자 순으로 동그라미 채우기
+  const av = x => x.image
+    ? `<span class="fr-av"><img src="${x.image}" alt=""></span>`
+    : x.emoji ? `<span class="fr-av em">${esc(x.emoji)}</span>`
+    : `<span class="fr-av ini">${esc(Array.from(String(x.name || '?').trim() || '?')[0])}</span>`;
+  const body = x => `${av(x)}
+    <span class="fr-b">
+      <span class="fr-n">${esc(x.name || '이름 없음')}</span>
+      ${x.desc ? `<span class="ds">${nl(x.desc)}</span>` : ''}
+    </span>
+    ${x.link ? '<span class="fr-go" aria-hidden="true">↗</span>' : ''}`;
   return `${f.intro ? `<p class="tab-intro">${nl(f.intro)}</p>` : ''}
-    ${f.items.length ? `<div class="friends c${f.cols}">${f.items.map(x => `
-      <div class="fr" ${accentStyle(x.accent)}>
-        ${x.emoji ? `<div class="em">${esc(x.emoji)}</div>` : ''}
-        <div class="fr-b">
-          <h3>${esc(x.name)}</h3>
-          ${x.desc ? `<p class="ds">${nl(x.desc)}</p>` : ''}
-          ${x.link ? `<a class="lnk" href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.linkText || '보러 가기')} ↗</a>` : ''}
-        </div>
-      </div>`).join('')}</div>` : `<p class="empty">아직 등록된 트친이 없어요</p>`}`;
+    ${f.items.length ? `<div class="friends c${f.cols}">${f.items.map(x => x.link
+      ? `<a class="fr" href="${esc(x.link)}" target="_blank" rel="noopener" ${accentStyle(x.accent)}>${body(x)}</a>`
+      : `<div class="fr" ${accentStyle(x.accent)}>${body(x)}</div>`).join('')}</div>`
+      : `<p class="empty">아직 등록된 트친이 없어요</p>`}`;
 }
 
 /* =========================================================
@@ -1201,7 +1207,6 @@ body.no-anim section{animation:none}
 .sub{font-size:13px;color:var(--accent);margin:0;letter-spacing:.05em}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .tag{font-size:12px;padding:2px 10px;border-radius:99px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:color-mix(in srgb,var(--accent) 65%,var(--text))}
-.lnk{display:inline-block;margin-top:10px;padding:4px 14px;border-radius:99px;background:var(--accent);color:#fff;text-decoration:none;font-size:13px}
 
 /* 캐릭터 블록 + 프롬프트 */
 .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -1447,15 +1452,25 @@ body.no-anim section{animation:none}
 }
 
 /* ---------- 트친 소개 ---------- */
-.friends{display:grid;gap:12px}
+.friends{display:grid;gap:8px}
 .friends.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.fr{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-radius:20px;background:color-mix(in srgb,var(--accent) 9%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 16%,transparent)}
-.fr .em{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--card);font-size:23px;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.fr-b{min-width:0}
-.fr h3{margin:0;font-size:17px;line-height:1.4}
-.fr .hd{margin:0;font-size:12.5px;color:var(--accent)}
-.fr .ds{margin:6px 0 0;font-size:14.5px}
-@media (max-width:600px){.friends.c2 .fr{flex-direction:column;gap:8px}}
+.fr{display:flex;gap:12px;align-items:center;padding:11px 14px;border-radius:16px;text-decoration:none;color:inherit;
+  background:color-mix(in srgb,var(--accent) 8%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 14%,transparent);
+  transition:transform .18s,background .18s,border-color .18s,box-shadow .18s}
+a.fr:hover{transform:translateY(-2px);background:color-mix(in srgb,var(--accent) 15%,var(--card));
+  border-color:color-mix(in srgb,var(--accent) 32%,transparent);box-shadow:0 8px 20px -12px rgba(20,50,80,.5)}
+a.fr:active{transform:none}
+.fr-av{width:38px;height:38px;flex-shrink:0;border-radius:50%;overflow:hidden;display:grid;place-items:center;
+  background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.fr-av img{width:100%;height:100%;object-fit:cover}
+.fr-av.em{font-size:19px;line-height:1}
+.fr-av.ini{font-size:16px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--card))}
+.fr-b{flex:1;min-width:0}
+.fr-n{display:block;font-size:14.5px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr .ds{display:block;margin-top:1px;font-size:13px;line-height:1.55;opacity:.62}
+.fr-go{flex-shrink:0;font-size:13px;color:var(--accent);opacity:.45;transition:opacity .18s,transform .18s}
+a.fr:hover .fr-go{opacity:1;transform:translate(1px,-1px)}
+@media (max-width:600px){.friends.c2{grid-template-columns:1fr}}
 
 /* ---------- 서브 페어 목록 나누기 ---------- */
 .sgrp+.sgrp{margin-top:32px}
@@ -1813,7 +1828,7 @@ function itemTitle(listPath, it) {
     if (it.kind === 'solo') return `● ${it.a.name || '이름'} · 단독`;
     return it.title || `${it.a.name || '캐릭터'} × ${it.b.name || '유저'}`;
   }
-  if ('linkText' in it) return `${it.emoji || ''} ${it.name || '이름 없음'}`.trim();
+  if ('name' in it) return `${it.emoji || ''} ${it.name || '이름 없음'}`.trim();
   return (it.title || it.q || (it.label ? `${it.emoji || ''} ${it.label}` : '') || it.caption || it.text || '항목').trim();
 }
 // 표지 지시문 미리보기 — 편집기를 다시 그리면 한글 조합이 깨지므로 글자만 갈아끼움
@@ -2131,10 +2146,13 @@ function friendsPanel(B, isOpen) {
         <label class="f">이모지<input type="text" data-path="${B}.items.${i}.emoji" value="${esc(f.emoji)}"></label>
         ${text(`${B}.items.${i}.name`, '이름')}
       </div>
+      ${imgField(`${B}.items.${i}.image`, '프로필 사진 (선택)')}
       ${area(`${B}.items.${i}.desc`, '소개', 2)}
-      <div class="row">${url(`${B}.items.${i}.link`, '링크 (선택)')}${text(`${B}.items.${i}.linkText`, '버튼 문구')}</div>
+      ${url(`${B}.items.${i}.link`, '링크 (선택)')}
       ${accentField(`${B}.items.${i}.accent`)}`, isOpen, f.accent)).join('')}
-    <button type="button" class="add" data-additem="${B}" data-type="friends">+ 트친 추가</button>`;
+    <button type="button" class="add" data-additem="${B}" data-type="friends">+ 트친 추가</button>
+    <p class="hint">사진을 넣으면 이모지 대신 사진이 동그랗게 보여요. 둘 다 없으면 이름 첫 글자가 들어가요.</p>
+    <p class="hint">링크를 넣으면 카드 전체를 눌러서 이동해요. 따로 버튼은 없어요.</p>`;
 }
 
 function lockPanel() {
