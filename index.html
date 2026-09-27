@@ -2774,7 +2774,8 @@ async function runDeploy() {
     let note = '반영까지 보통 1분쯤 걸려요.';
     const pages = await gh('GET', `${repoPath}/pages`);
     if (pages.status === 404) {
-      const on = await gh('PUT', `${repoPath}/pages`, { source: { branch: c.branch, path: '/' } });
+      // 새로 켤 때는 POST (PUT 은 이미 켜진 Pages 설정을 바꿀 때 쓰는 것)
+      const on = await gh('POST', `${repoPath}/pages`, { source: { branch: c.branch, path: '/' } });
       note = on.ok
         ? 'GitHub Pages도 켰어요. 처음에는 주소가 열리기까지 1~3분 걸려요.'
         : 'GitHub Pages가 아직 꺼져 있어요. 저장소 Settings → Pages에서 Branch를 main / (root)로 저장해주세요.';
