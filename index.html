@@ -35,6 +35,22 @@
   .ico-btn { min-width: 30px; text-align: center; }
   .badge.warn { background: #fdf1f0; border-color: #f3d0d0; color: #b3372e; }
   .note.warn { background: #fdf4f2; border-color: #f3d6cf; color: #8a3a2c; }
+  .rt { border: 1px solid var(--ed-line); border-radius: var(--r-s); background: #fff; transition: border-color var(--fx), box-shadow var(--fx); }
+  .rt:focus-within { border-color: var(--ed-accent); box-shadow: 0 0 0 3px rgba(58,143,214,.16); }
+  .rt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px; border-bottom: 1px solid var(--ed-line-s); background: var(--ed-soft); border-radius: var(--r-s) var(--r-s) 0 0; }
+  .rt-bar .rt-sel { width: 92px; padding: 4px 20px 4px 7px; font-size: 12px; background-position: right 5px center; border-radius: 6px; text-overflow: ellipsis; }
+  .rt-bar .rt-sel[data-rtcmd="size"] { width: 66px; }
+  .rt-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px; font-size: 12.5px; color: var(--ed-text); background: none; border: 0; border-radius: 6px; cursor: pointer; }
+  .rt-btn:hover:not(:disabled) { background: rgba(20,45,80,.07); border: 0; }
+  .rt-color { position: relative; }
+  .rt-color span { font-weight: 700; border-bottom: 3px solid #e2445c; line-height: 1.1; }
+  .rt-color input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; padding: 0; border: 0; cursor: pointer; }
+  .rt-sep { width: 1px; height: 16px; margin: 0 3px; background: var(--ed-line); }
+  .rt-box { min-height: 72px; max-height: 320px; overflow: auto; padding: 9px 11px; font-size: 13.5px; line-height: 1.65; color: var(--ed-text); outline: none; word-break: keep-all; overflow-wrap: anywhere; }
+  .rt-box:empty::before { content: attr(data-ph); color: #a3adba; }
+  #edToast { position: fixed; left: 212px; bottom: 22px; transform: translate(-50%, 10px); z-index: 50; padding: 8px 14px; border-radius: 99px; background: rgba(22,32,44,.9); color: #fff; font-size: 12.5px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; white-space: nowrap; }
+  #edToast.on { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 860px) { #edToast { left: 50%; } }
   .movebar { display: flex; flex-wrap: wrap; gap: 5px; }
   .movebar button { font-size: 12.5px; padding: 7px 10px; }
   .movebar button:hover:not(:disabled) { border-color: var(--ed-accent); color: var(--ed-accent); background: var(--ed-accent-2); }
@@ -186,6 +202,11 @@
   .layouts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .layouts.two { grid-template-columns: 1fr 1fr; }
   .layouts.three { grid-template-columns: repeat(3, 1fr); }
+  .layouts.five { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .layouts.five .lay { padding: 7px 0 5px; font-size: 10.5px; }
+  .layouts.five .lay svg { width: 36px; height: 26px; }
+  .pal-ed { display: flex; gap: 5px; }
+  .pal-ed input[type=color] { flex: 1; height: 34px; padding: 2px; }
   .lay { display: grid; justify-items: center; gap: 4px; padding: 8px 2px 6px; font-size: 11px; color: var(--ed-sub); line-height: 1.2; border-radius: var(--r-m); }
   .lay svg { width: 44px; height: 30px; color: #9aa6b4; transition: color var(--fx); }
   .lay:hover:not(:disabled) { border-color: #c2ccda; }
@@ -283,7 +304,7 @@ const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', c
 // kind: 'pair'(알약 · 두 명) / 'solo'(동그라미 · 한 명, a만 사용 · role로 캐릭터/유저 구분)
 const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', track: '', a: charObj(), b: charObj() }, o);
 const mainItem = (o = {}) => Object.assign({
-  accent: '', style: 'poster', showTitle: true, track: '', image: '', title: '', sub: '', tags: '', desc: '',
+  accent: '', skin: 'basic', palette: [], date: '', style: 'poster', showTitle: true, track: '', image: '', title: '', sub: '', tags: '', desc: '',
   backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, picFade: 0, picFadeDir: 'bottom', cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
   frontMode: 'single', frontA: '', frontB: '', a: charObj(), b: charObj(),
 }, o);
@@ -360,7 +381,7 @@ const DEFAULT = {
     desc: '안녕하세요!\n여기에 자기소개를 적어주세요.\n\n편하게 말 걸어주세요 :)',
   },
   mains: {
-    cols: 1, intro: '', showRole: true,
+    cols: 1, intro: '', showRole: true, flipHint: '↻ 카드를 눌러 뒤집어 보세요',
     items: [
       mainItem({
         title: 'A × B', sub: 'MAIN PAIR', tags: '태그 1, 태그 2', desc: '두 사람에 대한 소개를 적어주세요.',
@@ -393,13 +414,19 @@ const LAYOUTS = {
   polaroid: { label: '폴라로이드', icon: '<g transform="rotate(-6 22 15)"><rect x="11" y="2" width="22" height="26" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13.5" y="4.5" width="17" height="16" fill="currentColor" opacity=".5"/></g>' },
 };
 const CARD_STYLES = {
-  postcard: { label: '가로 (엽서)', icon: '<rect x="3" y="5" width="38" height="22" rx="2.5" fill="currentColor" opacity=".45"/>' },
-  poster:   { label: '세로 (포스터)', icon: '<rect x="12" y="1" width="20" height="28" rx="2.5" fill="currentColor" opacity=".45"/>' },
+  postcard: { label: '가로', icon: '<rect x="3" y="5" width="38" height="22" rx="2.5" fill="currentColor" opacity=".45"/>' },
+  poster:   { label: '세로', icon: '<rect x="12" y="1" width="20" height="28" rx="2.5" fill="currentColor" opacity=".45"/>' },
 };
 const BACK_LAYOUTS = {
   cols: { label: '나란히',   icon: '<rect x="3" y="3" width="17" height="12" rx="2" fill="currentColor" opacity=".5"/><rect x="24" y="3" width="17" height="12" rx="2" fill="currentColor" opacity=".5"/><rect x="3" y="18" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="24" y="18" width="14" height="2.5" rx="1" fill="currentColor"/><rect x="3" y="23" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/><rect x="24" y="23" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/>' },
   rows: { label: '한 줄씩',  icon: '<rect x="3" y="2" width="11" height="11" rx="2" fill="currentColor" opacity=".5"/><rect x="17" y="4" width="16" height="2.5" rx="1" fill="currentColor"/><rect x="17" y="9" width="24" height="2" rx="1" fill="currentColor" opacity=".5"/><rect x="3" y="16" width="11" height="11" rx="2" fill="currentColor" opacity=".5"/><rect x="17" y="18" width="16" height="2.5" rx="1" fill="currentColor"/><rect x="17" y="23" width="24" height="2" rx="1" fill="currentColor" opacity=".5"/>' },
-  hero: { label: '사진 겹치기', icon: '<circle cx="18" cy="9" r="7" fill="currentColor" opacity=".45"/><circle cx="26" cy="9" r="7" fill="currentColor" opacity=".65"/><rect x="3" y="20" width="17" height="2.5" rx="1" fill="currentColor"/><rect x="24" y="20" width="17" height="2.5" rx="1" fill="currentColor"/><rect x="3" y="25" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/><rect x="24" y="25" width="17" height="2" rx="1" fill="currentColor" opacity=".5"/>' },
+};
+const CARD_SKINS = {
+  basic:    { label: '기본', icon: '<rect x="12" y="3" width="20" height="24" rx="2.5" fill="currentColor" opacity=".45"/>' },
+  postcard: { label: '엽서', icon: '<rect x="3" y="5" width="38" height="21" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M24 8v15" stroke="currentColor" stroke-width="1" opacity=".5"/><rect x="31" y="8" width="7" height="8" fill="currentColor" opacity=".55"/><path d="M27 19h11M27 22h11M6 10h14M6 13h12M6 16h14" stroke="currentColor" stroke-width="1.2" opacity=".55"/>' },
+  ticket:   { label: '영화표', icon: '<path d="M3 6h28a3 3 0 006 0h4v18h-4a3 3 0 00-6 0H3z" fill="currentColor" opacity=".5"/><path d="M34 10v10" stroke="#fff" stroke-width="1.2" stroke-dasharray="1.5 1.5"/>' },
+  receipt:  { label: '영수증', fixed: 'poster', icon: '<path d="M13 3l2 2 2-2 2 2 2-2 2 2 2-2 2 2 2-2v24l-2-2-2 2-2-2-2 2-2-2-2 2-2-2-2 2z" fill="currentColor" opacity=".45"/><path d="M16 10h12M16 14h12M16 18h8" stroke="#fff" stroke-width="1.2"/>' },
+  chip:     { label: '컬러칩', fixed: 'poster', icon: '<rect x="13" y="2" width="18" height="26" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="2" width="18" height="18" fill="currentColor" opacity=".5"/><path d="M16 23h9M16 25.5h6" stroke="currentColor" stroke-width="1.2"/>' },
 };
 const FRONT_MODES = {
   single: { label: '한 장', icon: '<rect x="10" y="3" width="24" height="24" rx="2" fill="currentColor" opacity=".5"/>' },
@@ -486,6 +513,14 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const OLD_KEYS = ['v7', 'v6', 'v5', 'v4', 'v3', 'v2'].map(v => 'twt-intro-gen-' + v);
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => k in o).map(k => [k, o[k]]));
 
+// 메인 페어 항목 값 정리 — 없어진 배치(사진 겹치기)와 잘못된 템플릿 · 팔레트
+function fixMain(m) {
+  if (!BACK_LAYOUTS[m.backLayout]) m.backLayout = 'cols';
+  if (!CARD_SKINS[m.skin]) m.skin = 'basic';
+  m.palette = Array.isArray(m.palette) ? m.palette.filter(v => /^#[0-9a-f]{6}$/i.test(v || '')).slice(0, 5) : [];
+  return m;
+}
+
 // 이전 버전 데이터도 최대한 살려서 불러오기
 function migrate(s) {
   const d = Object.assign(clone(DEFAULT), s);
@@ -527,8 +562,8 @@ function migrate(s) {
   const PAGE_FILL = {
     profile: pg => { const e = Object.assign(clone(DEFAULT.profile), pg); if (!LAYOUTS[e.layout]) e.layout = 'stack';
       e.info = (e.info || []).map(r => Object.assign({ k: '', v: '', fold: false }, r)); return e; },
-    mains: pg => { const m = Object.assign({ cols: 1, intro: '', showRole: true }, pg);
-      m.items = (m.items || []).map(it => mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) }))); return m; },
+    mains: pg => { const m = Object.assign({ cols: 1, intro: '', showRole: true, flipHint: '↻ 카드를 눌러 뒤집어 보세요' }, pg);
+      m.items = (m.items || []).map(it => fixMain(mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })))); return m; },
     others: pg => { const o = Object.assign({ cols: 1, showName: true, namePos: 'in', nameFont: 'body', showRole: true, detailStyle: 'card', groups: [], groupStyle: 'title', showAll: true, intro: '' }, pg);
       o.items = (o.items || []).map(it => pairItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) }))); return o; },
     friends: pg => { const f = Object.assign({ cols: 1, intro: '' }, pg);
@@ -567,8 +602,8 @@ function migrate(s) {
     d.mains = { cols: 1, intro: '', items: [one] };
   }
   delete d.main;
-  d.mains = Object.assign({ cols: 1, intro: '', showRole: true }, d.mains);
-  d.mains.items = d.mains.items.map(it => { const m = mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) })); delete m.textGlow; return m; });
+  d.mains = Object.assign({ cols: 1, intro: '', showRole: true, flipHint: '↻ 카드를 눌러 뒤집어 보세요' }, d.mains);
+  d.mains.items = d.mains.items.map(it => { const m = fixMain(mainItem(Object.assign({}, it, { a: charObj(it.a), b: charObj(it.b) }))); delete m.textGlow; return m; });
 
   if (d.friends.items?.some(it => 'layout' in it)) {
     d.friends = { cols: d.friends.cols || 1, intro: d.friends.intro || '', items: d.friends.items.map(it => friendItem({ name: it.name, desc: it.desc, link: it.link })) };
@@ -615,6 +650,69 @@ function shade(hex, p) {
     .join('');
 }
 
+/* =========================================================
+   서식 있는 글 (페어 소개 · 캐릭터 소개)
+   서식을 넣으면 '<!--rt-->' 로 시작하는 HTML 로, 아니면 그냥 글자로 저장
+   ========================================================= */
+const RT = '<!--rt-->';
+const RT_FONTS = {
+  'Gowun Dodum': ['고운돋움', ''], 'Gowun Batang': ['고운바탕', 'wght@400;700'], 'Noto Sans KR': ['본고딕', 'wght@400;700'],
+  'Nanum Myeongjo': ['나눔명조', 'wght@400;700'], 'Song Myung': ['송명', ''], 'Jua': ['주아', ''], 'Do Hyeon': ['도현', ''],
+  'Nanum Pen Script': ['나눔펜 · 손글씨', ''], 'Gaegu': ['개구 · 손글씨', 'wght@400;700'], 'Hi Melody': ['하이멜로디 · 손글씨', ''],
+  'Nanum Gothic Coding': ['나눔고딕코딩 · 타자기', 'wght@400;700'],
+  'Cormorant Garamond': ['Cormorant · 영문 세리프', 'ital,wght@0,500;1,400;1,500'], 'Dancing Script': ['Dancing Script · 영문 필기', 'wght@500;600'],
+};
+const RT_SIZES = { '.8em': '아주 작게', '.9em': '작게', '1em': '보통', '1.15em': '조금 크게', '1.35em': '크게', '1.7em': '아주 크게' };
+const RT_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'BR', 'SPAN', 'DIV', 'P', 'FONT']);
+const RT_CSS = ['color', 'background-color', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-decoration-line', 'text-align'];
+const isRt = v => typeof v === 'string' && v.startsWith(RT);
+const rtCache = new Map();
+// 허용한 태그 · 스타일만 남기고 나머지는 걷어냄 (붙여넣기 · 불러온 파일 대비)
+function cleanRt(html) {
+  if (rtCache.has(html)) return rtCache.get(html);
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html'), root = doc.body.firstChild;
+  (function walk(n) {
+    [...n.childNodes].forEach(c => {
+      if (c.nodeType === 3) return;
+      if (c.nodeType !== 1) { c.remove(); return; }
+      if (/^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|SVG|MATH)$/i.test(c.tagName)) { c.remove(); return; }
+      walk(c);
+      if (!RT_TAGS.has(c.tagName)) { c.replaceWith(...c.childNodes); return; }
+      if (c.tagName === 'FONT') {
+        const sp = doc.createElement('span');
+        if (c.getAttribute('color')) sp.style.color = c.getAttribute('color');
+        if (c.getAttribute('face')) sp.style.fontFamily = c.getAttribute('face');
+        sp.append(...c.childNodes); c.replaceWith(sp); c = sp;
+      }
+      const keep = RT_CSS.map(k => [k, c.style.getPropertyValue(k)]).filter(([, v]) => v && v !== 'initial' && !/url\(|expression|javascript:/i.test(v));
+      [...c.attributes].forEach(a => c.removeAttribute(a.name));
+      keep.forEach(([k, v]) => c.style.setProperty(k, v));
+      if (c.tagName === 'SPAN' && !c.getAttribute('style')) c.replaceWith(...c.childNodes);
+    });
+  })(root);
+  const out = root.innerHTML;
+  if (rtCache.size > 300) rtCache.clear();
+  rtCache.set(html, out);
+  return out;
+}
+// 결과물에 넣을 HTML — 서식 글이면 정리해서, 아니면 줄바꿈만
+const rt = v => isRt(v) ? cleanRt(v.slice(RT.length)) : nl(v);
+// 서식 글에 쓰인 글꼴 (결과물에서 불러올 것만)
+function rtFontsUsed(d) {
+  const used = new Set();
+  (function walk(o) {
+    if (typeof o === 'string') {
+      if (isRt(o)) for (const m of o.matchAll(/font-family:\s*([^;"]+?)(?:;|"|$)/g)) {
+        const f = m[1].replace(/&quot;|['"]/g, '').split(',')[0].trim();
+        if (RT_FONTS[f]) used.add(f);
+      }
+      return;
+    }
+    if (o && typeof o === 'object') for (const k in o) walk(o[k]);
+  })(d);
+  return used;
+}
+
 function fontLink(d) {
   const fams = new Map();
   const add = (name, spec = '') => { if (name && !fams.has(name)) fams.set(name, spec); };
@@ -623,6 +721,11 @@ function fontLink(d) {
   add('Gowun Batang', 'wght@400;700');
   add('Dancing Script', 'wght@500;600');
   add('Nanum Pen Script');
+  rtFontsUsed(d).forEach(f => add(f, RT_FONTS[f][1]));
+  const skins = new Set(d.tabs.filter(t => t.type === 'mains').flatMap(t => (getPath(d, dataPath(t))?.items || []).map(m => m.skin)));
+  if (skins.has('postcard')) add('Special Elite');
+  if (skins.has('ticket')) { add('Bebas Neue'); add('Do Hyeon'); }
+  if (skins.has('ticket') || skins.has('receipt') || skins.has('postcard')) add('Nanum Gothic Coding', 'wght@400;700');
   return 'https://fonts.googleapis.com/css2?' + [...fams].map(([n, s]) => 'family=' + n.replace(/ /g, '+') + (s ? ':' + s : '')).join('&') + '&display=swap';
 }
 
@@ -994,7 +1097,7 @@ function charHTML(c, label, imgHTML = '', hideCopyName = false) {
       ${meta ? `<p class="meta">${meta}</p>` : ''}
       ${c.with ? `<p class="meta mwith">${esc(c.with)}</p>` : ''}
       ${c.link ? `<a class="meta-lnk" href="${esc(c.link)}" target="_blank" rel="noopener">보러 가기 ↗</a>` : ''}
-      ${c.desc ? `<p class="cd">${nl(c.desc)}</p>` : ''}
+      ${c.desc ? `<div class="cd">${rt(c.desc)}</div>` : ''}
     </div>
   </div>`;
 }
@@ -1028,15 +1131,133 @@ function backBg(m) {
   return `background:linear-gradient(180deg,${mix(.5)} 0%,${mix(1)} 50%,${mix(1.6)} 100%),${img}`;
 }
 
-function mainCard(m, i, labels) {
+/* ---------- 메인 페어 카드 템플릿 (엽서 · 영화표 · 영수증 · 컬러칩) ---------- */
+const hexLum = h => { const n = parseInt(h.slice(1), 16); return (.299 * (n >> 16) + .587 * ((n >> 8) & 255) + .114 * (n & 255)) / 255; };
+// 팔레트를 비워두면 포인트 색으로 어두운색 → 밝은색 5단계
+const autoPalette = h => [shade(h, -.55), shade(h, -.28), h, shade(h, .38), shade(h, .72)];
+function barcodeSVG(seed) {
+  const r = rng(seed); let x = 0, bars = '';
+  for (let n = 0; n < 44; n++) { const w = r() < .32 ? 2 : 1; bars += `<rect x="${x}" width="${w}" height="20"/>`; x += w + (r() < .42 ? 2 : 1); }
+  return `<svg class="bc" viewBox="0 0 ${x} 20" preserveAspectRatio="none" aria-hidden="true" fill="currentColor">${bars}</svg>`;
+}
+function skinFaces(m, labels, accent) {
+  const sk = m.skin, A = m.a, B = m.b;
+  const seed = parseInt(fnv1a(`${m.title}|${A.name}|${B.name}`), 16);
+  const title = m.title || [A.name, B.name].filter(Boolean).join(' × ') || 'MAIN PAIR';
+  const sub = m.sub || 'MAIN PAIR';
+  const no = String(seed % 10000).padStart(4, '0');
+  const pal = (Array.isArray(m.palette) && m.palette.filter(isHex).length === 5) ? m.palette : autoPalette(accent);
+  const tags = tagList(m.tags);
+  const meta = c => [c.platform, c.creator].filter(Boolean).map(esc).join(' · ');
+  const img = src => `<img loading="lazy" decoding="async" src="${src}" alt="">`;
+  const photo = m.frontMode === 'duo'
+    ? `<div class="duo-front">${[['frontA', 'l'], ['frontB', 'r']].map(([k, cls]) => `<span class="side ${cls}">${m[k] ? img(m[k]) : ''}</span>`).join('')}</div>`
+    : m.image ? img(m.image) : '<div class="ph">MAIN IMAGE</div>';
+  const av = (c, cls) => `<span class="${cls} ${c.image && c.prompt ? 'copyable' : ''}" ${c.image ? copyAttr(c.prompt) : ''}>${c.image ? img(c.image) : `<i>${esc(Array.from((c.name || '?').trim() || '?')[0])}</i>`}</span>`;
+  const link = c => c.link ? `<a class="sk-lnk" href="${esc(c.link)}" target="_blank" rel="noopener">보러 가기 ↗</a>` : '';
+  const who = [[A, labels.a], [B, labels.b]];
+  const bc = barcodeSVG(seed);
+
+  if (sk === 'postcard') {
+    const stamp = (c, n) => `<span class="pc-st pc-st${n}"><span class="pc-paper">${av(c, 'pc-st-in')}</span></span>`;
+    return [`
+      <div class="pc-front"><div class="pc-photo">${photo}</div>
+        ${m.showTitle && m.title ? `<p class="pc-cap">${esc(m.title)}</p>` : ''}</div>`, `
+      <div class="pc-back">
+        <div class="pc-side">
+          <div class="pc-stamps">${stamp(A, 1)}${stamp(B, 2)}
+            <span class="pc-mark"><b>${esc(sub)}</b>${m.date ? `<small>${esc(m.date)}</small>` : ''}</span></div>
+          <div class="pc-addr">
+            <p><i>TO.</i><span>${esc(B.name)}</span></p>
+            <p><i>FROM.</i><span>${esc(A.name)}</span></p>
+          </div>
+        </div>
+        <div class="pc-msg">
+          <p class="pc-k">POST CARD</p>
+          ${m.desc ? `<div class="pc-text">${rt(m.desc)}</div>` : ''}
+          ${who.map(([c, l]) => `<div class="pc-p">${l ? `<small>${esc(l)}</small>` : ''}<b>${esc(c.name)}</b>${meta(c) ? `<span>${meta(c)}</span>` : ''}${link(c)}${c.desc ? `<div class="pc-d">${rt(c.desc)}</div>` : ''}</div>`).join('')}
+          ${tags.length ? `<p class="pc-tags">${tags.map(t => `#${esc(t)}`).join(' ')}</p>` : ''}
+        </div>
+        <div class="pc-pal">${pal.map(c => `<span><i style="background:${c}"></i><em>${c.toUpperCase()}</em></span>`).join('')}</div>
+      </div>`];
+  }
+
+  if (sk === 'ticket') {
+    const screen = String(seed % 9 + 1).padStart(2, '0'), row = 'ABCDEFGHJK'[(seed >> 4) % 10], seat = (seed >> 8) % 24 + 1;
+    return [`
+      <div class="tk tk-f">
+        <div class="tk-main"><div class="tk-photo">${photo}</div>
+          <div class="tk-title"><p>${esc(sub)}</p><h2>${esc(title)}</h2>${m.date ? `<p class="tk-date">${esc(m.date)}</p>` : ''}</div></div>
+        <div class="tk-stub"><p class="tk-admit">ADMIT<br>ONE</p><div class="tk-bc">${bc}</div><p class="tk-no">No. ${no}</p></div>
+      </div>`, `
+      <div class="tk tk-b">
+        <div class="tk-stub"><p><small>SCREEN</small><b>${screen}</b></p><p><small>ROW</small><b>${row}</b></p><p><small>SEAT</small><b>${seat}</b></p><div class="tk-bc">${bc}</div></div>
+        <div class="tk-main tk-info">
+          <p class="tk-k">${esc(sub)}${m.date ? ` · ${esc(m.date)}` : ''}</p>
+          <h3>${esc(title)}</h3>
+          ${who.map(([c, l]) => `<div class="tk-cast">${av(c, 'tk-av')}<div><small>${esc(l || 'CAST')}</small><b>${esc(c.name)}</b>${meta(c) ? `<span>${meta(c)}</span>` : ''}${link(c)}${c.desc ? `<div class="tk-d">${rt(c.desc)}</div>` : ''}</div></div>`).join('')}
+          ${m.desc ? `<div class="tk-desc">${rt(m.desc)}</div>` : ''}
+          ${tags.length ? `<p class="tk-tags">${tags.map(t => `#${esc(t)}`).join(' ')}</p>` : ''}
+        </div>
+      </div>`];
+  }
+
+  if (sk === 'receipt') {
+    const row = (l, v) => `<p class="rc-row"><span>${l}</span><i></i><span>${v}</span></p>`;
+    return [`
+      <div class="rc rc-f">
+        <p class="rc-head">${esc(sub)}</p>
+        <p class="rc-sm">${m.date ? `${esc(m.date)} · ` : ''}No.${no}</p>
+        <div class="rc-photo">${photo}</div>
+        <p class="rc-title">${esc(title)}</p>
+        <div class="rc-bc">${bc}</div>
+      </div>`, `
+      <div class="rc rc-b">
+        <p class="rc-head">${esc(sub)}</p>
+        <p class="rc-sm">${m.date ? `${esc(m.date)} · ` : ''}No.${no}</p>
+        <hr class="rc-hr">
+        ${who.map(([c, l]) => `<div class="rc-item">${av(c, 'rc-av')}<div>${row(esc(l || 'ITEM'), esc(c.name))}${meta(c) ? `<p class="rc-sm l">${meta(c)}</p>` : ''}${link(c)}${c.desc ? `<div class="rc-d">${rt(c.desc)}</div>` : ''}</div></div>`).join('')}
+        <hr class="rc-hr">
+        ${tags.length ? row('TAGS', tags.map(esc).join(', ')) : ''}
+        ${m.desc ? `<div class="rc-desc">${rt(m.desc)}</div>` : ''}
+        <hr class="rc-hr dbl">
+        <p class="rc-row rc-total"><span>TOTAL</span><i></i><span>♡ 100%</span></p>
+        <div class="rc-bc">${bc}</div>
+        <p class="rc-sm">THANK YOU · COME AGAIN</p>
+      </div>`];
+  }
+
+  // chip — 컬러칩
+  const code = (String(m.date || '').match(/\d+/g) || []).join('').slice(-6).replace(/^(\d{2})(\d{2})(\d{2})$/, '$1-$2$3') || `${String(seed % 89 + 10)}-${no}`;
+  return [`
+    <div class="ch ch-f"><div class="ch-photo">${photo}</div>
+      <div class="ch-label"><p class="ch-brand">${esc(sub)}</p><p class="ch-code">${esc(code)}</p><p class="ch-name">${esc(title)}</p></div></div>`, `
+    <div class="ch ch-b">
+      <div class="ch-sw">${pal.map(c => `<span style="background:${c};color:${hexLum(c) > .6 ? '#1d2228' : '#fff'}"><em>${c.toUpperCase()}</em></span>`).join('')}</div>
+      <div class="ch-body">
+        <p class="ch-brand">${esc(title)}</p>
+        ${who.map(([c, l]) => `<div class="ch-p">${av(c, 'ch-av')}<div><small>${esc(l || '')}</small><b>${esc(c.name)}</b>${meta(c) ? `<span>${meta(c)}</span>` : ''}${link(c)}${c.desc ? `<div class="ch-d">${rt(c.desc)}</div>` : ''}</div></div>`).join('')}
+        ${m.desc ? `<div class="ch-desc">${rt(m.desc)}</div>` : ''}
+        ${tags.length ? `<p class="ch-tags">${tags.map(t => `#${esc(t)}`).join(' ')}</p>` : ''}
+      </div>
+    </div>`];
+}
+
+function mainCard(m, i, labels, accent = '#4fa8e0') {
+  if (CARD_SKINS[m.skin] && m.skin !== 'basic') {
+    const orient = CARD_SKINS[m.skin].fixed || (m.style === 'postcard' ? 'postcard' : 'poster');
+    const [front, back] = skinFaces(m, labels, isHex(m.accent) ? m.accent : accent);
+    return `<div class="mcard" ${accentStyle(m.accent)}>
+    <div class="flip ${orient} sk sk-${esc(m.skin)}" data-fi="${i}" ${ytId(m.track) ? `data-mus="${ytId(m.track)}"` : ''} role="button" tabindex="0" aria-label="카드 뒤집기">
+      <div class="flip-inner"><div class="face front">${front}</div><div class="face back">${back}</div></div>
+    </div>
+  </div>`;
+  }
   const pic = c => c.image ? `<img loading="lazy" decoding="async" src="${c.image}" alt="">` : '';
   // 메인 페어는 '대화한 캐릭터' 줄을 쓰지 않음 (서브 페어 전용)
   const nw = c => Object.assign({}, c, { with: '' });
   // 사진 가장자리를 그라데이션으로 투명하게 — 뒷배경 이미지와 자연스럽게 섞이도록
   const fade = Math.max(0, Math.min(100, Number(m.picFade) || 0));
-  const hero = m.backLayout === 'hero' && (m.a.image || m.b.image)
-    ? `<div class="hero">${[m.a, m.b].map(c => `<span class="${c.image && c.prompt ? 'copyable' : ''}" ${c.image ? copyAttr(c.prompt) : ''}>${c.image ? `<img loading="lazy" decoding="async" src="${c.image}" alt="">` : ''}</span>`).join('')}</div>` : '';
-  const withPics = m.backLayout !== 'hero';
   return `<div class="mcard" ${accentStyle(m.accent)}>
     <div class="flip ${m.style === 'postcard' ? 'postcard' : 'poster'}" data-fi="${i}" ${ytId(m.track) ? `data-mus="${ytId(m.track)}"` : ''} role="button" tabindex="0" aria-label="카드 뒤집기">
       <div class="flip-inner">
@@ -1047,30 +1268,29 @@ function mainCard(m, i, labels) {
           ${m.showTitle && (m.title || m.sub) ? `<div class="front-tx">${m.sub ? `<p>${esc(m.sub)}</p>` : ''}${m.title ? `<h2>${esc(m.title)}</h2>` : ''}</div>` : ''}
         </div>
         <div class="face back lay-${esc(m.backLayout)} shape-${esc(m.picShape)} ${m.cardBg === false ? 'no-cb' : ''} ${m.backImg ? 'has-img' : ''} ${fade ? `pf pf-${esc(PIC_FADES[m.picFadeDir] ? m.picFadeDir : 'bottom')}` : ''} tx-${esc(m.textStyle || 'plain')}" style="--pic:${Number(m.picSize) || 100};--tc:${isHex(m.textColor) ? m.textColor : '#ffffff'};--pc:${isHex(m.pillColor) ? m.pillColor : '#ffffff'};--rad:${Number(m.picRadius) || 0};--pf:${fade};${backBg(m)}">
-          ${hero}
           <div class="bk-head">
             ${m.sub ? `<p class="sub">${esc(m.sub)}</p>` : ''}
             ${m.title ? `<h2>${esc(m.title)}</h2>` : ''}
             ${tagsHTML(m.tags)}
           </div>
           <div class="cols">
-            ${charHTML(nw(m.a), labels.a, withPics ? pic(m.a) : '', !withPics && !!m.a.image)}
-            ${charHTML(nw(m.b), labels.b, withPics ? pic(m.b) : '', !withPics && !!m.b.image)}
+            ${charHTML(nw(m.a), labels.a, pic(m.a))}
+            ${charHTML(nw(m.b), labels.b, pic(m.b))}
           </div>
-          ${m.desc ? `<p class="bk-desc">${nl(m.desc)}</p>` : ''}
+          ${m.desc ? `<div class="bk-desc">${rt(m.desc)}</div>` : ''}
         </div>
       </div>
     </div>
-    <p class="flip-hint">↻ 카드를 눌러 뒤집어 보세요</p>
   </div>`;
 }
 
-function mainsHTML(ms, labels) {
+function mainsHTML(ms, labels, accent) {
   if (!ms.items.length) return `<p class="empty">아직 등록된 메인 페어가 없어요</p>`;
   // CHARACTER / USER 이름표 끄기
   const lb = ms.showRole === false ? { a: '', b: '' } : labels;
   return `${ms.intro ? `<p class="tab-intro">${nl(ms.intro)}</p>` : ''}
-    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, lb)).join('')}</div>`;
+    ${ms.flipHint ? `<p class="flip-hint">${esc(ms.flipHint)}</p>` : ''}
+    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, lb, accent)).join('')}</div>`;
 }
 
 function othersHTML(o, labels, uid = 'o') {
@@ -1185,7 +1405,7 @@ function pageHTML(tb, pg) {
 function tabHTML(tb, d) {
   switch (tb.type) {
     case 'profile': return profileHTML(getPath(d, dataPath(tb)));
-    case 'mains':   return mainsHTML(getPath(d, dataPath(tb)), d.labels);
+    case 'mains':   return mainsHTML(getPath(d, dataPath(tb)), d.labels, d.theme.accent);
     case 'others':  return othersHTML(getPath(d, dataPath(tb)), d.labels, tb.id);
     case 'friends': return friendsHTML(getPath(d, dataPath(tb)));
     default:        return pageHTML(tb, d.pages[tb.id] || {});
@@ -1329,15 +1549,15 @@ body.no-anim section{animation:none}
 .cb .meta-lnk{font-size:12.5px;color:var(--accent);text-decoration:none}
 .cb .cd{margin:8px 0 0;font-size:14px;line-height:1.65}
 .copyable{position:relative;cursor:copy;outline:none}
-.cb-pic.copyable img,.hero .copyable img{transition:transform .35s,filter .35s}
-.cb-pic.copyable:hover img,.hero .copyable:hover img{transform:scale(1.04);filter:brightness(.82)}
+.cb-pic.copyable img{transition:transform .35s,filter .35s}
+.cb-pic.copyable:hover img{transform:scale(1.04);filter:brightness(.82)}
 .copyable::after{content:attr(data-tip);position:absolute;left:50%;bottom:10px;transform:translate(-50%,6px);opacity:0;pointer-events:none;white-space:nowrap;
   padding:5px 12px;border-radius:999px;background:rgba(20,24,32,.84);color:#fff;font:500 11.5px var(--sys);transition:opacity .2s,transform .2s}
 .copyable:hover::after,.copyable:focus-visible::after,.copyable.copied::after{opacity:1;transform:translate(-50%,0)}
 .copyable.copied::after{background:var(--accent)}
 .copy-name{display:inline-block;overflow:visible;text-decoration:underline dotted color-mix(in srgb,var(--accent) 60%,transparent);text-underline-offset:4px}
 .copy-name::after{bottom:auto;top:-30px}
-@media (hover:none){.cb-pic.copyable::before,.hero .copyable::before{content:"";position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;z-index:1;
+@media (hover:none){.cb-pic.copyable::before{content:"";position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;z-index:1;
   background:rgba(20,24,32,.55) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='1.6'><rect x='5.5' y='5.5' width='8' height='8' rx='2'/><path d='M10.5 5.5V4a1.5 1.5 0 00-1.5-1.5H4A1.5 1.5 0 002.5 4v5A1.5 1.5 0 004 10.5h1.5'/></svg>") center/12px no-repeat}}
 /* ---------- 배경 음악 (유튜브) ---------- */
 .mus-btn{position:relative;border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:0;
@@ -1449,30 +1669,188 @@ body.no-anim section{animation:none}
 .lay-rows .cb{flex-direction:row;align-items:flex-start;gap:12px}
 .lay-rows .cb-pic{width:calc(var(--pic) * 1.3px);margin:0;align-self:flex-start}
 .lay-rows .cb-t{flex:1}
-.hero{display:flex;justify-content:center;margin:2px 0 12px}
-.hero span{width:calc(var(--pic) * 1.3px);aspect-ratio:1;border-radius:calc(var(--rad,12) * 1px);overflow:hidden;background:color-mix(in srgb,var(--accent) 20%,var(--card));
-  border:3px solid var(--card);box-shadow:0 6px 16px -8px rgba(20,50,80,.35)}
-.hero span+span{margin-left:calc(var(--pic) * -.3px)}
-.hero span:first-child{transform:rotate(-4deg)}.hero span:last-child{transform:rotate(4deg)}
-.hero img{width:100%;height:100%;object-fit:cover}
-.shape-tall .cb-pic,.shape-tall .hero span{aspect-ratio:3/4}
-.shape-wide .cb-pic,.shape-wide .hero span{aspect-ratio:4/3}
-.shape-round .cb-pic,.shape-round .hero span{border-radius:50%}
-.shape-arch .cb-pic,.shape-arch .hero span{aspect-ratio:3/4;border-radius:999px 999px 0 0}
-.shape-heart .cb-pic,.shape-heart .hero span{border-radius:0;border:0;box-shadow:none;background:none;-webkit-mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat;mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat}
-.shape-natural .cb-pic,.shape-natural .hero span{aspect-ratio:auto}
-.shape-natural .cb-pic img,.shape-natural .hero img{height:auto}
+.shape-tall .cb-pic{aspect-ratio:3/4}
+.shape-wide .cb-pic{aspect-ratio:4/3}
+.shape-round .cb-pic{border-radius:50%}
+.shape-arch .cb-pic{aspect-ratio:3/4;border-radius:999px 999px 0 0}
+.shape-heart .cb-pic{border-radius:0;border:0;box-shadow:none;background:none;-webkit-mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat;mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50 94C17 70 2 51 2 30 2 14 14 4 28 4c10 0 18 6 22 14 4-8 12-14 22-14 14 0 26 10 26 26 0 21-15 40-48 64Z'/></svg>\") center/100% 100% no-repeat}
+.shape-natural .cb-pic{aspect-ratio:auto}
+.shape-natural .cb-pic img{height:auto}
 /* 사진 가장자리를 그라데이션으로 투명하게 — 뒷배경 이미지와 자연스럽게 섞기 */
 .pf{--fs:calc(100% - var(--pf) * 1%);--fh:calc(var(--pf) * .5%)}
-.pf .cb-pic,.pf .hero span{background:none;border:0;box-shadow:none}
-.pf .cb-pic img,.pf .hero img{-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%}
-.pf-bottom .cb-pic img,.pf-bottom .hero img{-webkit-mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%)}
-.pf-top .cb-pic img,.pf-top .hero img{-webkit-mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%)}
-.pf-sides .cb-pic img,.pf-sides .hero img{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%)}
-.pf-edge .cb-pic img,.pf-edge .hero img{-webkit-mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%);mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%)}
-.pf .hero span+span{margin-left:calc(var(--pic) * -.18px)}
-.flip-hint{text-align:center;font:13px var(--sys);opacity:.5;margin:14px 0 0;transition:opacity .3s}
-.flip.on+.flip-hint{opacity:0}
+.pf .cb-pic{background:none;border:0;box-shadow:none}
+.pf .cb-pic img{-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.pf-bottom .cb-pic img{-webkit-mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(180deg,#000 var(--fs),transparent 100%)}
+.pf-top .cb-pic img{-webkit-mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%);mask-image:linear-gradient(0deg,#000 var(--fs),transparent 100%)}
+.pf-sides .cb-pic img{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 var(--fh),#000 calc(100% - var(--fh)),transparent 100%)}
+.pf-edge .cb-pic img{-webkit-mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%);mask-image:radial-gradient(farthest-corner at 50% 50%,#000 var(--fs),transparent 100%)}
+.flip-hint{text-align:center;font:12.5px var(--sys);opacity:.5;margin:-8px 0 18px;transition:opacity .4s}
+.flip-hint.seen{opacity:0}
+/* ---------- 메인 페어 카드 템플릿 ---------- */
+.sk{--sk-type:'Special Elite','Nanum Gothic Coding',ui-monospace,monospace;--sk-mono:'Nanum Gothic Coding',ui-monospace,Menlo,monospace;
+  --sk-hand:'Nanum Pen Script',cursive;--sk-cond:'Bebas Neue','Do Hyeon',sans-serif;
+  --sk-helv:"Helvetica Neue",Helvetica,Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.sk .face{container-type:size;border-radius:0;box-shadow:none;background:none;overflow:visible}
+.sk .face.back{padding:0;background:none;overflow:visible}
+.sk .ph{height:100%}
+.sk .duo-front{position:absolute;inset:0}
+.sk-lnk{font-size:max(11px,2cqmin);color:var(--accent);text-decoration:none}
+.sk-ticket.postcard .flip-inner{aspect-ratio:2/1}
+.sk-ticket.poster .flip-inner,.sk-receipt .flip-inner{aspect-ratio:5/8}
+.sk-chip .flip-inner{aspect-ratio:2/3}
+.flip.sk-receipt,.flip.sk-ticket.poster{max-width:360px}
+.flip.sk-chip{max-width:380px}
+.sk-ticket .face,.sk-receipt .face{filter:drop-shadow(0 12px 14px rgba(25,35,55,.2))}
+
+/* 엽서 */
+.sk-postcard .face{background:#fbf7ef;border-radius:3px;box-shadow:0 0 0 1px rgba(60,45,20,.07),0 16px 30px -14px rgba(50,40,25,.42)}
+.pc-front{position:absolute;inset:0;padding:4.2cqmin}
+.pc-photo{position:relative;height:100%;overflow:hidden;background:#e8e1d3}
+.pc-photo>img{width:100%;height:100%;object-fit:cover}
+.pc-cap{position:absolute;left:9cqmin;bottom:8cqmin;margin:0;max-width:72%;color:#fff;font:400 max(24px,8cqmin)/1.05 var(--sk-hand);
+  text-shadow:0 1px 8px rgba(0,0,0,.45);transform:rotate(-5deg);transform-origin:left bottom}
+.pc-back{position:absolute;inset:0;overflow:auto;scrollbar-width:thin;padding:5cqmin 5.5cqmin 4.5cqmin;display:grid;gap:3.4cqmin 5cqmin;color:#3b3a36;
+  grid-template-columns:minmax(0,1fr) 36%;grid-template-rows:1fr auto;grid-template-areas:"msg side" "pal pal"}
+.poster .pc-back{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;grid-template-areas:"side" "msg" "pal"}
+.pc-msg{grid-area:msg;min-width:0;display:flex;flex-direction:column;gap:2.6cqmin}
+.pc-side{grid-area:side;display:flex;flex-direction:column;gap:4cqmin;padding-left:5cqmin;border-left:1px solid rgba(60,50,40,.18)}
+.poster .pc-side{flex-direction:row-reverse;align-items:flex-end;padding:0 0 4cqmin;border-left:0;border-bottom:1px solid rgba(60,50,40,.18)}
+.pc-stamps{position:relative;align-self:flex-end;display:flex;height:max(66px,20cqmin);margin:1cqmin 1cqmin 0 0}
+.poster .pc-stamps{align-self:flex-start;margin:0}
+.pc-st{position:relative;height:100%;aspect-ratio:4/5;filter:drop-shadow(0 .5px 1.2px rgba(60,45,25,.45))}
+.pc-paper{--p:max(2.2px,.7cqmin);display:block;width:100%;height:100%;padding:calc(var(--p) * 2.4);background:#fff;
+  -webkit-mask:radial-gradient(var(--p),#0000 97%,#000) round calc(var(--p) * -1.5) calc(var(--p) * -1.5)/calc(var(--p) * 3) calc(var(--p) * 3),linear-gradient(#000 0 0) no-repeat 50%/calc(100% - var(--p) * 3) calc(100% - var(--p) * 3);
+  mask:radial-gradient(var(--p),#0000 97%,#000) round calc(var(--p) * -1.5) calc(var(--p) * -1.5)/calc(var(--p) * 3) calc(var(--p) * 3),linear-gradient(#000 0 0) no-repeat 50%/calc(100% - var(--p) * 3) calc(100% - var(--p) * 3)}
+.pc-st1{transform:rotate(-4deg);z-index:1}
+.pc-st2{margin-left:-24%;transform:rotate(5deg) translateY(8%)}
+.pc-st-in{display:block;width:100%;height:100%;overflow:hidden;background:color-mix(in srgb,var(--accent) 40%,#fff)}
+.pc-st-in img{width:100%;height:100%;object-fit:cover}
+.pc-st-in i{display:grid;place-items:center;height:100%;font:700 max(18px,6cqmin) var(--sk-type);font-style:normal;color:#fff}
+.pc-mark{position:absolute;right:62%;bottom:-22%;z-index:2;width:max(58px,16cqmin);aspect-ratio:1;border:max(1.5px,.45cqmin) solid currentColor;border-radius:50%;
+  display:grid;place-content:center;gap:.4cqmin;text-align:center;color:color-mix(in srgb,var(--accent) 50%,#33302a);opacity:.6;transform:rotate(-14deg);
+  pointer-events:none;font-family:var(--sk-type);line-height:1.15}
+.pc-mark::before{content:"";position:absolute;inset:max(2.5px,.75cqmin);border:1px solid currentColor;border-radius:50%}
+.pc-mark::after{content:"";position:absolute;left:96%;top:28%;width:130%;height:44%;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 22'><path d='M0 4q7.5-4 15 0t15 0 15 0 15 0M0 11q7.5-4 15 0t15 0 15 0 15 0M0 18q7.5-4 15 0t15 0 15 0 15 0' fill='none' stroke='black' stroke-width='1.4'/></svg>") center/100% 100% no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 22'><path d='M0 4q7.5-4 15 0t15 0 15 0 15 0M0 11q7.5-4 15 0t15 0 15 0 15 0M0 18q7.5-4 15 0t15 0 15 0 15 0' fill='none' stroke='black' stroke-width='1.4'/></svg>") center/100% 100% no-repeat}
+.pc-mark b{font-weight:400;font-size:max(7px,1.8cqmin);letter-spacing:.06em;max-width:max(44px,12cqmin);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-mark small{font-size:max(6.5px,1.6cqmin)}
+.pc-addr{display:grid;gap:2.4cqmin;margin-top:auto}
+.poster .pc-addr{flex:1;margin:0}
+.pc-addr p{margin:0;display:flex;align-items:baseline;gap:1.8cqmin;padding-bottom:.9cqmin;border-bottom:1px solid rgba(60,50,40,.28);min-width:0}
+.pc-addr i{flex:none;font:max(9px,1.8cqmin) var(--sk-type);font-style:normal;letter-spacing:.14em;opacity:.6}
+.pc-addr span{font:max(20px,4.4cqmin)/1 var(--sk-hand);color:#2d2b27;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-k{margin:0;font:max(9px,1.8cqmin) var(--sk-type);letter-spacing:.34em;opacity:.55}
+.pc-text{font:max(19px,4.2cqmin)/1.35 var(--sk-hand);color:#2d2b27}
+.pc-p{display:grid;gap:.5cqmin;font-size:max(12px,2.4cqmin)}
+.pc-p small{font:max(8.5px,1.6cqmin) var(--sk-type);letter-spacing:.16em;opacity:.55}
+.pc-p b{font-size:max(14px,2.9cqmin)}
+.pc-p span{font-size:max(11px,2.1cqmin);opacity:.6}
+.pc-d{font-size:max(12px,2.3cqmin);line-height:1.6;opacity:.85}
+.pc-tags{margin:0;font:max(10.5px,2cqmin) var(--sk-type);color:color-mix(in srgb,var(--accent) 70%,#3b3a36)}
+.pc-pal{grid-area:pal;display:flex;gap:2cqmin;padding-top:3cqmin;border-top:1px dashed rgba(60,50,40,.28)}
+.pc-pal span{flex:1;min-width:0;display:grid;gap:1.1cqmin}
+.pc-pal i{display:block;height:max(16px,5.4cqmin);border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.pc-pal em{font:max(8px,1.6cqmin)/1 var(--sk-type);font-style:normal;letter-spacing:.04em;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 영화표 */
+.tk{--r:max(9px,3cqmin);position:absolute;inset:0;display:flex;border-radius:max(7px,1.8cqmin);overflow:hidden}
+.poster .tk{flex-direction:column}
+.postcard .tk-f{--px:75%}
+.postcard .tk-b{--px:25%}
+.postcard .tk{-webkit-mask:radial-gradient(circle var(--r) at var(--px) 0,#0000 97%,#000) top/100% 51% no-repeat,radial-gradient(circle var(--r) at var(--px) 100%,#0000 97%,#000) bottom/100% 51% no-repeat;
+  mask:radial-gradient(circle var(--r) at var(--px) 0,#0000 97%,#000) top/100% 51% no-repeat,radial-gradient(circle var(--r) at var(--px) 100%,#0000 97%,#000) bottom/100% 51% no-repeat}
+.poster .tk{--py:77%;-webkit-mask:radial-gradient(circle var(--r) at 0 var(--py),#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--r) at 100% var(--py),#0000 97%,#000) right/51% 100% no-repeat;
+  mask:radial-gradient(circle var(--r) at 0 var(--py),#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle var(--r) at 100% var(--py),#0000 97%,#000) right/51% 100% no-repeat}
+.tk-main{position:relative;flex:1;min-width:0;min-height:0}
+.tk-stub{flex:none;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:max(7px,2.2cqmin);padding:3cqmin;text-align:center;
+  background:color-mix(in srgb,var(--accent) 78%,#1b202c);color:#fff}
+.postcard .tk-stub{width:25%}
+.poster .tk-stub{height:23%;flex-direction:row;justify-content:space-around;padding:0 5cqmin}
+.postcard .tk-f .tk-stub{border-left:max(2px,.45cqmin) dashed rgba(255,255,255,.5)}
+.postcard .tk-b .tk-stub{border-right:max(2px,.45cqmin) dashed rgba(255,255,255,.5)}
+.poster .tk-f .tk-stub{border-top:max(2px,.45cqmin) dashed rgba(255,255,255,.5)}
+.poster .tk-b .tk-stub{order:2;border-top:max(2px,.45cqmin) dashed rgba(46,42,36,.3)}
+.tk-photo{position:absolute;inset:0;background:#262b36}
+.tk-photo>img{width:100%;height:100%;object-fit:cover}
+.tk-photo .ph{color:rgba(255,255,255,.45)}
+.tk-title{position:absolute;left:0;right:0;bottom:0;padding:14cqmin 5cqmin 4.5cqmin;color:#fff;background:linear-gradient(transparent,rgba(10,12,20,.8))}
+.tk-title p{margin:0;font:max(9px,2cqmin) var(--sk-mono);letter-spacing:.24em;text-transform:uppercase;opacity:.82}
+.tk-title h2{margin:.6cqmin 0 0;font:400 max(28px,9cqmin)/.95 var(--sk-cond);letter-spacing:.02em;text-wrap:balance}
+.tk-title .tk-date{margin-top:1.4cqmin;letter-spacing:.14em}
+.tk-admit{margin:0;font:400 max(19px,5.6cqmin)/.88 var(--sk-cond);letter-spacing:.06em}
+.tk-bc{width:78%;height:max(22px,8cqmin)}
+.poster .tk-bc{width:36%;height:max(26px,9cqmin)}
+.tk-bc .bc{display:block;width:100%;height:100%}
+.tk-no{margin:0;font:max(8.5px,1.8cqmin) var(--sk-mono);letter-spacing:.14em;opacity:.82}
+.tk-b .tk-main{background:#f6efe1;color:#2e2a24}
+.tk-b .tk-stub{background:color-mix(in srgb,var(--accent) 22%,#f6efe1);color:#2e2a24}
+.tk-b .tk-stub p{margin:0;display:grid;gap:.6cqmin;line-height:1}
+.tk-b .tk-stub small{font:max(7.5px,1.5cqmin) var(--sk-mono);letter-spacing:.2em;opacity:.65}
+.tk-b .tk-stub b{font:400 max(20px,6cqmin)/1 var(--sk-cond);color:color-mix(in srgb,var(--accent) 65%,#2e2a24)}
+.tk-info{overflow:auto;scrollbar-width:thin;padding:4.5cqmin 5cqmin;display:flex;flex-direction:column;gap:2.6cqmin}
+.tk-k{margin:0;font:max(9px,1.9cqmin) var(--sk-mono);letter-spacing:.2em;text-transform:uppercase;opacity:.6}
+.tk-info h3{margin:-1cqmin 0 0;font:400 max(24px,6.8cqmin)/1 var(--sk-cond);letter-spacing:.02em;color:color-mix(in srgb,var(--accent) 60%,#2e2a24)}
+.tk-cast{display:flex;gap:2.6cqmin;align-items:flex-start;padding-top:2.4cqmin;border-top:1px dashed rgba(46,42,36,.25)}
+.tk-av,.rc-av,.ch-av{flex:none;aspect-ratio:1;overflow:hidden;background:color-mix(in srgb,var(--accent) 35%,#fff)}
+.tk-av{width:max(40px,11cqmin);border-radius:max(4px,1cqmin)}
+.tk-av img,.rc-av img,.ch-av img{width:100%;height:100%;object-fit:cover}
+.tk-av i,.rc-av i,.ch-av i{display:grid;place-items:center;height:100%;font-style:normal;font-weight:700;color:#fff;font-size:max(15px,4cqmin)}
+.tk-cast>div,.rc-item>div,.ch-p>div{min-width:0;display:grid;gap:.5cqmin;align-content:start}
+.tk-cast small{font:max(8px,1.6cqmin) var(--sk-mono);letter-spacing:.18em;opacity:.55}
+.tk-cast b{font-size:max(14px,3cqmin)}
+.tk-cast span{font-size:max(11px,2cqmin);opacity:.6}
+.tk-d,.tk-desc{font-size:max(12px,2.3cqmin);line-height:1.6}
+.tk-desc{padding-top:2.4cqmin;border-top:1px dashed rgba(46,42,36,.25)}
+.tk-tags{margin:0;font:max(10.5px,2cqmin) var(--sk-mono);color:color-mix(in srgb,var(--accent) 70%,#2e2a24)}
+
+/* 영수증 */
+.rc{--z:max(11px,3.4cqw);position:absolute;inset:0;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;align-items:center;gap:2.4cqw;
+  padding:calc(var(--z) + 5cqw) 7cqw calc(var(--z) + 5cqw);background:#fdfcf7;color:#26241f;font-family:var(--sk-mono);text-align:center;
+  -webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/var(--z) 51% repeat-x,conic-gradient(from 135deg at top,#0000,#000 1deg 89deg,#0000 90deg) top/var(--z) 51% repeat-x;
+  mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/var(--z) 51% repeat-x,conic-gradient(from 135deg at top,#0000,#000 1deg 89deg,#0000 90deg) top/var(--z) 51% repeat-x}
+.rc::-webkit-scrollbar{display:none}
+.rc-head{margin:0;font-weight:700;font-size:max(14px,4.6cqw);letter-spacing:.2em;text-transform:uppercase}
+.rc-sm{margin:0;font-size:max(10px,2.8cqw);letter-spacing:.06em;opacity:.62}
+.rc-sm.l{text-align:left}
+.rc-photo{position:relative;flex:1 1 auto;min-height:30%;width:100%;overflow:hidden;background:#ece9df;margin:1.4cqw 0}
+.rc-photo>img{width:100%;height:100%;object-fit:cover}
+.rc-title{margin:0;font-weight:700;font-size:max(13px,4.2cqw);line-height:1.35;text-wrap:balance}
+.rc-bc{flex:none;width:64%;height:max(28px,9cqw)}
+.rc-bc .bc{display:block;width:100%;height:100%}
+.rc-hr{flex:none;width:100%;margin:.6cqw 0;border:0;border-top:1px dashed rgba(38,36,31,.45)}
+.rc-hr.dbl{border-top:3px double rgba(38,36,31,.5)}
+.rc-item{width:100%;display:flex;gap:3cqw;text-align:left;align-items:flex-start}
+.rc-av{width:max(36px,11cqw);background:#e6e2d6}
+.rc-row{margin:0;width:100%;display:flex;align-items:baseline;gap:1.6cqw;font-size:max(12px,3.3cqw);text-align:left}
+.rc-row span:first-child{flex:none;letter-spacing:.08em;opacity:.7;font-size:max(10px,2.8cqw)}
+.rc-row i{flex:1;min-width:2cqw;border-bottom:1px dotted rgba(38,36,31,.5);transform:translateY(-.3em)}
+.rc-row span:last-child{font-weight:700;text-align:right;max-width:64%;overflow-wrap:anywhere}
+.rc-d,.rc-desc{width:100%;font-size:max(11.5px,3cqw);line-height:1.65;text-align:left}
+.rc-total{font-size:max(15px,4.4cqw)}
+.rc-total span:first-child{font-size:inherit;opacity:1;font-weight:700}
+
+/* 컬러칩 */
+.sk-chip .face{background:#fff;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.06),0 16px 30px -14px rgba(20,30,50,.4)}
+.ch{position:absolute;inset:0;display:flex;flex-direction:column;font-family:var(--sk-helv);color:#16181c}
+.ch-photo{position:relative;flex:1;min-height:0;background:#e9ecef}
+.ch-photo>img{width:100%;height:100%;object-fit:cover}
+.ch-label{flex:none;padding:4.6cqw 6cqw 5.4cqw;display:grid;gap:.9cqw}
+.ch-brand{margin:0;font-weight:800;font-size:max(15px,5.6cqw);letter-spacing:-.01em;text-transform:uppercase;line-height:1}
+.ch-code{margin:0;font-weight:700;font-size:max(12px,3.8cqw);letter-spacing:.02em}
+.ch-name{margin:0;font-size:max(11px,3.2cqw);opacity:.66}
+.ch-b{overflow:auto;scrollbar-width:thin}
+.ch-sw{flex:none;display:flex;height:38%}
+.ch-sw span{flex:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3cqw}
+.ch-sw em{font:700 max(8px,2.3cqw)/1 var(--sk-helv);font-style:normal;letter-spacing:.04em;writing-mode:vertical-rl;transform:rotate(180deg)}
+.ch-body{padding:5.4cqw 6cqw 6cqw;display:flex;flex-direction:column;gap:3.2cqw}
+.ch-b .ch-brand{font-size:max(15px,5cqw);text-transform:none}
+.ch-p{display:flex;gap:3cqw;align-items:flex-start;padding-top:3cqw;border-top:1px solid rgba(0,0,0,.1)}
+.ch-av{width:max(38px,11.5cqw);background:#e9ecef}
+.ch-p small{font-size:max(8.5px,2.3cqw);font-weight:700;letter-spacing:.14em;opacity:.5}
+.ch-p b{font-size:max(14px,4.2cqw);font-weight:800}
+.ch-p span{font-size:max(11px,2.9cqw);opacity:.6}
+.ch-d,.ch-desc{font-size:max(12px,3.3cqw);line-height:1.6}
+.ch-tags{margin:0;font-size:max(11px,3cqw);font-weight:700;opacity:.5}
 
 /* ---------- 서브 페어: 이미지 알약 ---------- */
 .dpills{display:grid;gap:16px}
@@ -1903,6 +2281,8 @@ ${musicOn ? '<div class="yt-wrap" id="ytWrap"><div id="ytFrame"></div></div>' : 
   function flipState(){ return flips.map(function(f, i){ return f.classList.contains('on') ? i : -1; }).filter(function(i){ return i >= 0; }); }
   function setFlip(el, on){
     body.classList.remove('no-anim'); el.classList.toggle('on', on);
+    var sec = el.closest('section'), hint = sec && sec.querySelector('.flip-hint');
+    if (on && hint) hint.classList.add('seen');
     if (on) { if (el.dataset.mus) musItem(el.dataset.mus); } else if (el.dataset.mus) musBack();
     notify({ flips: flipState() });
   }
@@ -2060,6 +2440,34 @@ const accentField = path => {
 };
 const colsSelect = (path, unit) => select(path, '한 줄에', { 1: `1${unit}씩`, 2: `2${unit}씩` }, true);
 
+function extractPalette(src) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const S = 48, c = document.createElement('canvas'); c.width = S; c.height = S;
+      const x = c.getContext('2d'); x.drawImage(im, 0, 0, S, S);
+      const d = x.getImageData(0, 0, S, S).data, px = [];
+      for (let k = 0; k < d.length; k += 4) if (d[k + 3] > 200) px.push([d[k], d[k + 1], d[k + 2]]);
+      if (px.length < 5) return res(null);
+      const lum = p => p[0] * .299 + p[1] * .587 + p[2] * .114;
+      px.sort((a, b) => lum(a) - lum(b));
+      let ct = [0, 1, 2, 3, 4].map(k => px[Math.floor((k + .5) / 5 * px.length)].slice());
+      for (let it = 0; it < 12; it++) {
+        const sum = ct.map(() => [0, 0, 0, 0]);
+        px.forEach(p => {
+          let bi = 0, bd = Infinity;
+          ct.forEach((q, k) => { const dd = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2; if (dd < bd) { bd = dd; bi = k; } });
+          const t = sum[bi]; t[0] += p[0]; t[1] += p[1]; t[2] += p[2]; t[3]++;
+        });
+        ct = ct.map((q, k) => sum[k][3] ? sum[k].slice(0, 3).map(v => v / sum[k][3]) : q);
+      }
+      res(ct.sort((a, b) => lum(a) - lum(b)).map(q => '#' + q.map(v => Math.round(v).toString(16).padStart(2, '0')).join('')));
+    };
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+
 // 이 항목을 다른 페어 탭으로 옮기는 버튼들 (메인 ↔ 서브, 같은 종류 탭끼리도)
 function moveBar(B, i) {
   const here = state.tabs.find(t => dataPath(t) === B);
@@ -2074,6 +2482,40 @@ function moveBar(B, i) {
   </div>`;
 }
 
+// 서식 넣을 수 있는 입력칸 — 글꼴 · 크기 · 색 · 굵게 · 기울임 · 밑줄 · 취소선 · 정렬
+const RT_ICON = {
+  left: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M2.5 7h7M2.5 10h11M2.5 13h7"/></svg>',
+  center: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M4.5 7h7M2.5 10h11M4.5 13h7"/></svg>',
+  right: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4h11M6.5 7h7M2.5 10h11M6.5 13h7"/></svg>',
+};
+let rtFontsLoaded = false;
+function richArea(path, label, ph = '') {
+  if (!rtFontsLoaded) {   // 편집기에서도 글꼴이 보이도록 한 번만 불러옴
+    rtFontsLoaded = true;
+    const l = document.createElement('link'); l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?' + Object.entries(RT_FONTS).map(([n, [, sp]]) => 'family=' + n.replace(/ /g, '+') + (sp ? ':' + sp : '')).join('&') + '&display=swap';
+    document.head.appendChild(l);
+  }
+  const v = getPath(state, path) || '';
+  const btn = (cmd, inner, title) => `<button type="button" class="rt-btn" data-rtcmd="${cmd}" title="${title}">${inner}</button>`;
+  return `<div class="f">${label}
+    <div class="rt">
+      <div class="rt-bar">
+        <select class="rt-sel" data-rtcmd="font" title="글꼴"><option value="">글꼴</option>${Object.entries(RT_FONTS).map(([f, [l]]) => `<option value="${esc(f)}">${esc(l)}</option>`).join('')}<option value="-">기본 글꼴로</option></select>
+        <select class="rt-sel" data-rtcmd="size" title="글씨 크기"><option value="">크기</option>${Object.entries(RT_SIZES).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+        <label class="rt-btn rt-color" title="글자 색"><input type="color" data-rtcmd="color" value="#e2445c"><span>A</span></label>
+        <span class="rt-sep"></span>
+        ${btn('bold', '<b>B</b>', '굵게')}${btn('italic', '<i>I</i>', '기울임')}${btn('underline', '<u>U</u>', '밑줄')}${btn('strikeThrough', '<s>S</s>', '취소선')}
+        <span class="rt-sep"></span>
+        ${btn('justifyLeft', RT_ICON.left, '왼쪽 정렬')}${btn('justifyCenter', RT_ICON.center, '가운데 정렬')}${btn('justifyRight', RT_ICON.right, '오른쪽 정렬')}
+        <span class="rt-sep"></span>
+        ${btn('clear', '지우기', '고른 부분의 서식 지우기 (고른 게 없으면 전체)')}
+      </div>
+      <div class="rt-box" contenteditable="true" data-rt="${path}" data-ph="${esc(ph)}" spellcheck="false">${isRt(v) ? cleanRt(v.slice(RT.length)) : nl(v)}</div>
+    </div>
+  </div>`;
+}
+
 // 캐릭터 한 명 입력칸 (메인/서브 페어 공통)
 function charEditor(path, title, { meta = true, withField = !meta, imgLabel = '사진 (선택)' } = {}) {
   return `<div class="card">
@@ -2082,7 +2524,7 @@ function charEditor(path, title, { meta = true, withField = !meta, imgLabel = '�
     ${meta ? `<div class="row">${text(`${path}.platform`, '플랫폼')}${text(`${path}.creator`, '제작자')}</div>
     ${url(`${path}.link`, '링크 (선택)')}` : ''}
     ${withField ? text(`${path}.with`, '대화한 캐릭터 (선택)', '예: 캐릭터 A · 캐릭터 B') : ''}
-    ${area(`${path}.desc`, '소개글', 3)}
+    ${richArea(`${path}.desc`, '소개글')}
     ${area(`${path}.prompt`, '이미지 프롬프트 (선택 · 사진을 누르면 복사돼요)', 2)}
   </div>`;
 }
@@ -2271,10 +2713,15 @@ function mainsPanel(B, isOpen) {
     <div class="row">${colsSelect(B + '.cols', '개')}</div>
     ${check(B + '.showRole', `이름 위에 '${esc(L.a)} · ${esc(L.b)}' 이름표 표시`)}
     ${text(B + '.intro', '탭 상단 문구 (선택)')}
+    ${text(B + '.flipHint', '뒤집기 안내 문구 (맨 위에 한 번만 · 비우면 안 보여요)')}
     ${ms.items.map((m, i, arr) => {
       const p = `${B}.items.${i}`, flipped = view.flips.includes(off + i);
+      const sk = CARD_SKINS[m.skin] ? m.skin : 'basic', fixed = CARD_SKINS[sk].fixed, basic = sk === 'basic';
+      const acc = isHex(m.accent) ? m.accent : state.theme.accent;
+      const pal = m.palette.length === 5 ? m.palette : autoPalette(acc);
       return itemCard(B + '.items', i, arr.length, esc(m.title || `${m.a.name || '캐릭터'} × ${m.b.name || '유저'}`), `
-        <div class="f">카드 비율${picker(`${p}.style`, CARD_STYLES, 'two')}</div>
+        <div class="f">카드 템플릿${picker(`${p}.skin`, CARD_SKINS, 'five')}</div>
+        ${fixed ? `<p class="hint">${CARD_SKINS[sk].label} 카드는 세로로만 나와요.</p>` : `<div class="f">카드 비율${picker(`${p}.style`, CARD_STYLES, 'two')}</div>`}
         <button type="button" data-flipi="${off + i}" data-tabi="${ti}" class="${flipped ? 'on' : ''}">${flipped ? '↺ 앞면 보기' : '↻ 뒷면 보기'}</button>
         ${accentField(`${p}.accent`)}
         ${state.music.on ? text(`${p}.track`, '이 페어의 노래 (유튜브 주소 · 선택)', '카드를 뒤집으면 이 노래로 바뀌어요') : ''}
@@ -2284,9 +2731,20 @@ function mainsPanel(B, isOpen) {
           ? `<div class="row">${imgField(`${p}.frontA`, '왼쪽 사진')}${imgField(`${p}.frontB`, '오른쪽 사진')}</div><p class="hint">두 사진이 가운데에서 그라데이션으로 이어져요.</p>`
           : imgField(`${p}.image`, '카드 이미지')}
         <div class="row">${text(`${p}.title`, '제목')}${text(`${p}.sub`, '부제')}</div>
-        ${check(`${p}.showTitle`, '앞면 이미지 위에 제목 표시')}
+        ${basic || sk === 'postcard' ? check(`${p}.showTitle`, '앞면 이미지 위에 제목 표시') : ''}
+        ${basic ? '' : text(`${p}.date`, '날짜 (선택 · 소인 · 표 · 영수증에 찍혀요)', '예: 2024.03.15')}
         <p class="grp">뒷면</p>
-        <div class="f">배치${picker(`${p}.backLayout`, BACK_LAYOUTS, 'three')}</div>
+        ${basic ? '' : sk === 'postcard' || sk === 'chip' ? `
+        <div class="f">색 팔레트 (${sk === 'chip' ? '뒷면 위쪽 색 띠' : '엽서 아래 색 띠'})
+          <div class="pal-ed">${pal.map((c, k) => `<input type="color" data-pal="${p}" data-k="${k}" value="${c}" title="${c}">`).join('')}</div>
+          <div class="row">
+            <button type="button" data-palx="${p}">🎨 사진에서 색 뽑기</button>
+            <button type="button" class="ghost" data-palclear="${p}" ${m.palette.length ? '' : 'disabled'}>↺ 포인트 색으로 자동</button>
+          </div>
+          <p class="hint">${m.palette.length ? '직접 고른 색이에요. 칸을 눌러 하나씩 바꿀 수 있어요.' : '지금은 포인트 색으로 자동으로 만든 색이에요. 칸을 누르거나 사진에서 뽑아 바꿀 수 있어요.'}</p>
+        </div>` : `<p class="hint">${CARD_SKINS[sk].label} 뒷면은 모양이 정해져 있어요. 위의 포인트 색으로 색감이 바뀌어요.</p>`}
+        ${basic ? `
+        <div class="f">배치${picker(`${p}.backLayout`, BACK_LAYOUTS, 'two')}</div>
         ${check(`${p}.cardBg`, '캐릭터 · 유저 칸에 배경 블록 깔기')}
         <div class="row">${imgField(`${p}.backImg`, '뒷면 배경 이미지 (선택)')}${m.backImg ? range(`${p}.backFade`, '배경색으로 덮기 (0% = 이미지 그대로)', 0, 100, '%') : ''}</div>
         <div class="f">제목 · 이름 스타일${picker(`${p}.textStyle`, TEXT_STYLES, 'three')}</div>
@@ -2295,11 +2753,11 @@ function mainsPanel(B, isOpen) {
         ${['square', 'tall', 'wide', 'natural'].includes(m.picShape) ? range(`${p}.picRadius`, '모서리 둥글기', 0, 40, 'px') : ''}
         <div class="f">사진 가장자리 투명하게 · 방향${picker(`${p}.picFadeDir`, PIC_FADES)}</div>
         ${range(`${p}.picFade`, '투명해지는 정도 (0% = 사용 안 함)', 0, 100, '%')}
-        <p class="hint">사진 가장자리를 그라데이션으로 지워서 뒷면 배경 이미지와 섞어요. 위의 '캐릭터 · 유저 칸에 배경 블록 깔기'를 끄면 더 자연스러워요.</p>
+        <p class="hint">사진 가장자리를 그라데이션으로 지워서 뒷면 배경 이미지와 섞어요. 위의 '캐릭터 · 유저 칸에 배경 블록 깔기'를 끄면 더 자연스러워요.</p>` : ''}
         ${text(`${p}.tags`, '태그', '쉼표(,)로 구분')}
         ${charEditor(`${p}.a`, `🤖 ${esc(L.a)}`)}
         ${charEditor(`${p}.b`, `🙋 ${esc(L.b)}`, { meta: false, withField: false })}
-        ${area(`${p}.desc`, '페어 소개 (선택)', 3)}
+        ${richArea(`${p}.desc`, '페어 소개 (선택)')}
         ${moveBar(B, i)}`, isOpen, m.accent);
     }).join('')}
     <button type="button" class="add" data-additem="${B}" data-type="mains">+ 메인 페어 추가</button>
@@ -3022,6 +3480,76 @@ function onField(e) {
   update();
 }
 ed.addEventListener('input', onField);
+
+/* ---------- 서식 있는 글 ---------- */
+// 툴바를 누르는 순간에도 고른 글자가 풀리지 않도록 마지막 선택 범위를 기억
+document.addEventListener('selectionchange', () => {
+  const sel = getSelection();
+  if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0), box = (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentNode)?.closest?.('.rt-box');
+  if (box) box._r = r.cloneRange();
+});
+// 칸 내용을 저장 — 서식이 하나도 없으면 그냥 글자로
+function rtSave(box) {
+  const html = cleanRt(box.innerHTML);
+  const fmt = /<(b|strong|i|em|u|s|strike)[\s>]|style="/i.test(html);
+  const v = fmt ? RT + html : box.innerText.replace(/\n+$/, '');
+  if (getPath(state, box.dataset.rt) === v) return;
+  setPath(state, box.dataset.rt, v);
+  refreshTitles();
+  update();
+}
+// 고른 글자를 span 으로 감싸 스타일 입히기 (안쪽에 같은 스타일이 있으면 지워서 새 값이 이기게)
+function rtWrap(box, css) {
+  const sel = getSelection();
+  if (!sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  if (r.collapsed || !box.contains(r.commonAncestorContainer)) return false;
+  const span = document.createElement('span');
+  Object.entries(css).forEach(([k, v]) => { if (v) span.style.setProperty(k, v); });
+  span.appendChild(r.extractContents());
+  span.querySelectorAll('span').forEach(x => {
+    Object.keys(css).forEach(k => x.style.removeProperty(k));
+    if (!x.getAttribute('style')) x.replaceWith(...x.childNodes);
+  });
+  r.insertNode(span);
+  const nr = document.createRange(); nr.selectNodeContents(span);
+  sel.removeAllRanges(); sel.addRange(nr);
+  if (!span.getAttribute('style')) span.replaceWith(...span.childNodes);
+  return true;
+}
+function rtApply(box, cmd, val) {
+  box.focus({ preventScroll: true });
+  const sel = getSelection();
+  if (box._r && box.contains(box._r.commonAncestorContainer)) { sel.removeAllRanges(); sel.addRange(box._r); }
+  const picked = sel.rangeCount && !sel.getRangeAt(0).collapsed && box.contains(sel.getRangeAt(0).commonAncestorContainer);
+  document.execCommand('styleWithCSS', false, true);
+  if (cmd === 'font') picked && rtWrap(box, { 'font-family': val === '-' ? '' : `'${val}'` });
+  else if (cmd === 'size') picked && rtWrap(box, { 'font-size': val === '1em' ? '' : val });
+  else if (cmd === 'color') picked && rtWrap(box, { color: val });
+  else if (cmd === 'clear') {
+    if (picked) { document.execCommand('removeFormat'); rtWrap(box, { 'font-family': '', 'font-size': '', color: '' }); }
+    else box.innerText = box.innerText;
+  } else document.execCommand(cmd);
+  if (!picked && ['font', 'size', 'color'].includes(cmd)) toastEd('글자를 먼저 드래그해서 고른 다음 바꿔주세요');
+  rtSave(box);
+}
+// 편집기 안내 말풍선 (짧게 떴다 사라짐)
+let toastTimer;
+function toastEd(msg) {
+  let t = $('#edToast');
+  if (!t) { t = Object.assign(document.createElement('div'), { id: 'edToast' }); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+ed.addEventListener('input', e => { const box = e.target.closest?.('.rt-box'); if (box) rtSave(box); });
+ed.addEventListener('mousedown', e => { if (e.target.closest('.rt-bar .rt-btn:not(.rt-color)')) e.preventDefault(); });
+// 붙여넣기는 글자만 (다른 사이트 서식이 딸려오지 않게)
+ed.addEventListener('paste', e => {
+  if (!e.target.closest?.('.rt-box')) return;
+  e.preventDefault();
+  document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+});
 // 배포 설정 칸 (프로젝트 데이터와 별도)
 ed.addEventListener('input', e => {
   const k = e.target.dataset.dp;
@@ -3053,6 +3581,7 @@ function copyToClipboard(text, btn) {
 ed.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (!b) return;
+  if (b.dataset.rtcmd) return rtApply(b.closest('.rt').querySelector('.rt-box'), b.dataset.rtcmd);
   if (b.id === 'btnCopyPrompt') return copyToClipboard(coverPromptText(state.cover), b);
   if (b.id === 'btnOptimize') return runOptimize(b);
   if (b.id === 'dpCheck') return checkDeploy();
@@ -3122,6 +3651,13 @@ ed.addEventListener('click', e => {
     update();
     return goEdTab(toTab.id);
   }
+  if (d.palx) {
+    const it = getPath(state, d.palx), src = it.image || it.frontA || it.frontB || it.a.image || it.b.image;
+    if (!src) return toastEd('앞면 사진을 먼저 넣어주세요');
+    b.disabled = true; b.textContent = '색 뽑는 중…';
+    return extractPalette(src).then(p => { if (p) { it.palette = p; update({ editor: true }); } else { b.disabled = false; toastEd('이 사진에서는 색을 뽑지 못했어요'); } });
+  }
+  if (d.palclear) { getPath(state, d.palclear).palette = []; return update({ editor: true }); }
   if (d.addtrack !== undefined) {
     state.music.tracks.push({ id: 't' + Date.now().toString(36), title: '', url: '' });
     return update({ editor: true });
@@ -3236,6 +3772,17 @@ ed.addEventListener('click', e => {
 
 ed.addEventListener('change', async e => {
   const el = e.target;
+  if (el.dataset.pal) {
+    const it = getPath(state, el.dataset.pal);
+    if (it.palette.length !== 5) it.palette = autoPalette(isHex(it.accent) ? it.accent : state.theme.accent);
+    it.palette[+el.dataset.k] = el.value;
+    return update({ editor: true });
+  }
+  if (el.dataset.rtcmd) {
+    rtApply(el.closest('.rt').querySelector('.rt-box'), el.dataset.rtcmd, el.value);
+    if (el.tagName === 'SELECT') el.value = '';
+    return;
+  }
   if (el.dataset.file) {
     if (!el.files[0]) return;
     setPath(state, el.dataset.file, await readImage(el.files[0]));
@@ -3252,7 +3799,7 @@ document.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
   const a = document.activeElement;
   // 글자 입력 중에는 입력칸 자체의 되돌리기를 그대로 둠
-  if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|url)$/.test(a.type)))) return;
+  if (a && (a.tagName === 'TEXTAREA' || a.isContentEditable || (a.tagName === 'INPUT' && /^(text|url)$/.test(a.type)))) return;
   e.preventDefault();
   e.shiftKey ? redo() : undo();
 });
