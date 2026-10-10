@@ -343,7 +343,7 @@ const charObj = (o = {}) => Object.assign({ name: '', image: '', platform: '', c
 // kind: 'pair'(알약 · 두 명) / 'solo'(동그라미 · 한 명, a만 사용 · role로 캐릭터/유저 구분)
 const pairItem = (o = {}) => Object.assign({ kind: 'pair', role: 'a', group: '', accent: '', track: '', shape: 'circle', frame: 'line', a: charObj(), b: charObj() }, o);
 const mainItem = (o = {}) => Object.assign({
-  accent: '', skin: 'basic', palette: [], date: '', paper: '', fontT: '', fontB: '', stampSize: 100, stampShape: 'rect', pcMark: true, picBorder: 'none', picBorderColor: '', picBorderW: 3, style: 'poster', showTitle: true, track: '', image: '', title: '', sub: '', tags: '', desc: '',
+  accent: '', skin: 'basic', palette: [], date: '', paper: '', glass: '', fontT: '', fontB: '', stampSize: 100, stampShape: 'rect', pcMark: true, picBorder: 'none', picBorderColor: '', picBorderW: 3, style: 'poster', showTitle: true, track: '', image: '', title: '', sub: '', tags: '', desc: '',
   backLayout: 'cols', picSize: 100, picShape: 'square', picRadius: 0, picFade: 0, picFadeDir: 'bottom', cardBg: true, backImg: '', backFade: 55, textStyle: 'plain', textColor: '#ffffff', pillColor: '#ffffff',
   frontMode: 'single', frontA: '', frontB: '', a: charObj(), b: charObj(),
 }, o);
@@ -636,6 +636,7 @@ function fixMain(m) {
   if (!PIC_BORDERS[m.picBorder]) m.picBorder = 'none';
   ['fontT', 'fontB'].forEach(k => { if (!SK_FONTS[m[k]]) m[k] = ''; });
   if (!/^#[0-9a-f]{6}$/i.test(m.paper || '')) m.paper = '';
+  if (!/^#[0-9a-f]{6}$/i.test(m.glass || '')) m.glass = '';
   if (!STAMP_SHAPES[m.stampShape]) m.stampShape = 'rect';
   m.palette = Array.isArray(m.palette) ? m.palette.filter(v => /^#[0-9a-f]{6}$/i.test(v || '')).slice(0, 5) : [];
   return m;
@@ -763,6 +764,17 @@ const accentStyle = a => isHex(a) ? `style="--accent:${a}"` : '';
 // 고정 시드 난수 — 미리보기를 다시 그려도 배치가 그대로
 function rng(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 
+// 두 색 섞기 (t = b 쪽 비율)
+function mixHex(a, b, t) {
+  const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+  return '#' + [16, 8, 0].map(k => Math.round(((A >> k) & 255) * (1 - t) + ((B >> k) & 255) * t).toString(16).padStart(2, '0')).join('');
+}
+// 배경색 위에서 잘 보이는 글자색 — 원하는 색(pref)이 충분히 대비되면 그대로, 아니면 진한/밝은 색
+function inkOn(bg, pref) {
+  const L = v => { const n = parseInt(v.slice(1), 16); return (.299 * (n >> 16) + .587 * ((n >> 8) & 255) + .114 * (n & 255)) / 255; };
+  if (pref && /^#[0-9a-f]{6}$/i.test(pref) && Math.abs(L(bg) - L(pref)) > .42) return pref;
+  return L(bg) < .55 ? '#f5f3ee' : '#22262c';
+}
 function shade(hex, p) {
   const n = parseInt(hex.slice(1), 16);
   return '#' + [n >> 16, (n >> 8) & 255, n & 255]
@@ -1272,7 +1284,7 @@ function barcodeSVG(seed) {
   return `<svg class="bc" viewBox="0 0 ${x} 20" preserveAspectRatio="none" aria-hidden="true" fill="currentColor">${bars}</svg>`;
 }
 // 뒷면 템플릿 그리기 — 앞면은 언제나 기본 카드
-function skinBack(m, labels, accent) {
+function skinBack(m, labels, accent, theme = {}) {
   const sk = m.skin, A = m.a, B = m.b;
   const seed = parseInt(fnv1a(`${m.title}|${A.name}|${B.name}`), 16);
   const title = m.title || [A.name, B.name].filter(Boolean).join(' × ') || 'MAIN PAIR';
@@ -1353,18 +1365,22 @@ function skinBack(m, labels, accent) {
   }
 
   if (sk === 'slide') {
-    // 발표 슬라이드 — 큰 제목 · 강조 막대 · 두 사람 카드 · 도형 장식
+    // 발표 슬라이드 — 포인트 색 표지 칸(제목) + 흰 본문 칸(두 사람 · 소개) + 아래 쪽번호 줄
+    const on = hexLum(accent) > .62 ? '#1c2230' : '#ffffff';
     return `
-      <div class="sl">
-        <span class="sl-deco" aria-hidden="true"></span><span class="sl-dots" aria-hidden="true"></span>
-        <div class="sl-head">
-          <p class="sl-k"><b>01</b>${esc(sub)}</p>
+      <div class="sl" style="--sl-on:${on}">
+        <div class="sl-cover">
+          <span class="sl-ring" aria-hidden="true"></span><span class="sl-dots" aria-hidden="true"></span>
+          <p class="sl-k">${esc(sub)}</p>
           <h3 class="sl-title">${esc(title)}</h3>
-          ${m.desc ? `<div class="sl-desc">${rt(m.desc)}</div>` : ''}
           ${tags.length ? `<p class="sl-tags">${tags.map(t => `<span>#${esc(t)}</span>`).join('')}</p>` : ''}
+          <p class="sl-no">01</p>
         </div>
-        <div class="sl-cards">${who.map(([c, l]) => `<div class="sl-card">${av(c, 'sl-av')}<div class="sl-t">${l ? `<small>${esc(l)}</small>` : ''}<b>${esc(c.name)}</b>${meta(c) ? `<span>${meta(c)}</span>` : ''}${link(c)}${c.desc ? `<div class="sl-d">${rt(c.desc)}</div>` : ''}</div></div>`).join('')}</div>
-        <p class="sl-foot"><span>${esc([A.name, B.name].filter(Boolean).join(' × '))}</span><span>${esc(date)}</span></p>
+        <div class="sl-main">
+          <div class="sl-cards">${who.map(([c, l]) => `<div class="sl-card">${av(c, 'sl-av')}<div class="sl-t">${l ? `<small>${esc(l)}</small>` : ''}<b>${esc(c.name)}</b>${meta(c) ? `<span>${meta(c)}</span>` : ''}${link(c)}${c.desc ? `<div class="sl-d">${rt(c.desc)}</div>` : ''}</div></div>`).join('')}</div>
+          ${m.desc ? `<div class="sl-desc">${rt(m.desc)}</div>` : ''}
+          <p class="sl-foot"><span>${esc([A.name, B.name].filter(Boolean).join(' × '))}</span><span>${esc(date)}</span></p>
+        </div>
       </div>`;
   }
 
@@ -1455,7 +1471,7 @@ function skinBack(m, labels, accent) {
     </div>`;
 }
 
-function mainCard(m, i, labels, accent = '#4fa8e0') {
+function mainCard(m, i, labels, accent = '#4fa8e0', theme = {}) {
   const pic = c => c.image ? `<img loading="lazy" decoding="async" src="${c.image}" alt="">` : '';
   // 메인 페어는 '대화한 캐릭터' 줄을 쓰지 않음 (서브 페어 전용)
   const nw = c => Object.assign({}, c, { with: '' });
@@ -1471,7 +1487,13 @@ function mainCard(m, i, labels, accent = '#4fa8e0') {
   const fCls = `${fT ? 'fT' : ''} ${fB ? 'fB' : ''}`;
   const fVar = (fT ? `--sk-script:${fT};--sk-iv:${fT};--sk-cond:${fT};--sk-slide:${fT};--sk-win:${fT};--fT:${fT};` : '') + (fB ? `--sk-serif:${fB};--sk-mono:${fB};--sk-helv:${fB};--fB:${fB};` : '');
   // 종이 색 — 어두우면 글자를 밝게
-  const paper = sk && isHex(m.paper) ? `--paper:${m.paper};${hexLum(m.paper) < .5 ? '--ink:#f3efe6;' : ''}` : '';
+  let paper = sk && isHex(m.paper) ? `--paper:${m.paper};${hexLum(m.paper) < .5 ? '--ink:#f3efe6;' : ''}` : '';
+  if (sk === 'window') {
+    // 창문: 창틀(비우면 페이지 배경) 위 이름표와 글자 창은 각각 자기 배경에 맞춰 글자색을 정함
+    const card = isHex(theme.card) ? theme.card : '#ffffff', acc = isHex(m.accent) ? m.accent : isHex(accent) ? accent : '#4fa8e0';
+    const frame = isHex(m.paper) ? m.paper : card, glass = isHex(m.glass) ? m.glass : mixHex(frame, acc, .1);
+    paper = `--paper:${frame};--ink:${inkOn(frame, theme.text)};--glass:${glass};--glass-ink:${inkOn(glass, theme.text)};`;
+  }
   const front = `<div class="face front">
           ${m.frontMode === 'duo'
             ? `<div class="duo-front">${[['frontA', 'l'], ['frontB', 'r']].map(([k, cls]) => `<span class="side ${cls}">${m[k] ? `<img loading="lazy" decoding="async" src="${m[k]}" alt="">` : ''}</span>`).join('')}</div>`
@@ -1479,7 +1501,7 @@ function mainCard(m, i, labels, accent = '#4fa8e0') {
           ${m.showTitle && (m.title || m.sub) ? `<div class="front-tx">${m.sub ? `<p>${esc(m.sub)}</p>` : ''}${m.title ? `<h2>${esc(m.title)}</h2>` : ''}</div>` : ''}
         </div>`;
   const back = sk
-    ? `<div class="face back skb skb-${sk} ${pbCls} ${fCls}" style="${pbVar}${fVar}${paper}">${skinBack(m, labels, isHex(m.accent) ? m.accent : accent)}</div>`
+    ? `<div class="face back skb skb-${sk} ${pbCls} ${fCls}" style="${pbVar}${fVar}${paper}">${skinBack(m, labels, isHex(m.accent) ? m.accent : accent, theme)}</div>`
     : `<div class="face back lay-${esc(m.backLayout)} shape-${esc(m.picShape)} ${m.cardBg === false ? 'no-cb' : ''} ${m.backImg ? 'has-img' : ''} ${fade ? `pf pf-${esc(PIC_FADES[m.picFadeDir] ? m.picFadeDir : 'bottom')}` : ''} ${pbCls} ${fCls} tx-${esc(m.textStyle || 'plain')}" style="${fVar}--pic:${Number(m.picSize) || 100};--tc:${isHex(m.textColor) ? m.textColor : '#ffffff'};--pc:${isHex(m.pillColor) ? m.pillColor : '#ffffff'};--rad:${Number(m.picRadius) || 0};--pf:${fade};${pbVar}${backBg(m)}">
           <div class="bk-head">
             ${m.sub ? `<p class="sub">${esc(m.sub)}</p>` : ''}
@@ -1502,13 +1524,13 @@ function mainCard(m, i, labels, accent = '#4fa8e0') {
   </div>`;
 }
 
-function mainsHTML(ms, labels, accent) {
+function mainsHTML(ms, labels, accent, theme = {}) {
   if (!ms.items.length) return `<p class="empty">아직 등록된 메인 페어가 없어요</p>`;
   // CHARACTER / USER 이름표 끄기
   const lb = ms.showRole === false ? { a: '', b: '' } : labels;
   return `${ms.intro ? `<p class="tab-intro">${nl(ms.intro)}</p>` : ''}
     ${ms.flipHint ? `<p class="flip-hint">${esc(ms.flipHint)}</p>` : ''}
-    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, lb, accent)).join('')}</div>`;
+    <div class="mains c${ms.cols}">${ms.items.map((m, i) => mainCard(m, i, lb, accent, theme)).join('')}</div>`;
 }
 
 function othersHTML(o, labels, uid = 'o') {
@@ -1555,7 +1577,7 @@ function othersHTML(o, labels, uid = 'o') {
   const allChip = o.showAll !== false, startId = chips && !allChip ? titled[0].id : null;
 
   return `${o.intro ? `<p class="tab-intro">${nl(o.intro)}</p>` : ''}
-    ${chips ? `<div class="gchips">${allChip ? '<button type="button" class="gchip on" data-g="*">전체</button>' : ''}${titled.map(b => `<button type="button" class="gchip ${b.id === startId ? 'on' : ''}" data-g="${esc(b.id)}">${esc(b.title || '세부 탭')}</button>`).join('')}</div>` : ''}
+    ${chips ? `<div class="gchips" data-uid="${esc(uid)}">${allChip ? '<button type="button" class="gchip on" data-g="*">전체</button>' : ''}${titled.map(b => `<button type="button" class="gchip ${b.id === startId ? 'on' : ''}" data-g="${esc(b.id)}">${esc(b.title || '세부 탭')}</button>`).join('')}</div>` : ''}
     <div class="sgrps ${startId ? 'filtered' : ''}">${shown.map(b => `
       <div class="sgrp" data-g="${esc(b.id)}" ${startId && b.id && b.id !== startId ? 'hidden' : ''}>
         ${b.id && b.title ? `<h3 class="sgrp-t">${esc(b.title)}</h3>` : ''}
@@ -1623,7 +1645,7 @@ function pageHTML(tb, pg) {
 function tabHTML(tb, d) {
   switch (tb.type) {
     case 'profile': return profileHTML(getPath(d, dataPath(tb)));
-    case 'mains':   return mainsHTML(getPath(d, dataPath(tb)), d.labels, d.theme.accent);
+    case 'mains':   return mainsHTML(getPath(d, dataPath(tb)), d.labels, d.theme.accent, d.theme);
     case 'others':  return othersHTML(getPath(d, dataPath(tb)), d.labels, tb.id);
     case 'friends': return friendsHTML(getPath(d, dataPath(tb)));
     default:        return pageHTML(tb, d.pages[tb.id] || {});
@@ -2023,33 +2045,39 @@ span[style*="background-color"]{padding:0 .15em;border-radius:.2em;-webkit-box-d
 .wd-tags{margin:0;font:italic max(11.5px,2.3cqmin) var(--sk-serif);color:var(--gold);white-space:pre-wrap}
 .wd-end{margin:0;font:500 max(9px,1.9cqmin) 'Cormorant Garamond',serif;letter-spacing:.6em;padding-left:.6em;color:var(--gold);opacity:.8}
 
-/* 슬라이드 — 깔끔한 발표 화면 */
-.face.skb-slide{background:var(--paper,#f4f5f8);box-shadow:0 0 0 1px rgba(20,30,50,.06),0 16px 30px -14px rgba(20,30,50,.35)}
-.sl{position:absolute;inset:0;overflow:auto;scrollbar-width:none;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:5.4cqmin;padding:8cqmin 7cqmin 5cqmin;color:var(--ink,#1c2230)}
-.sl::-webkit-scrollbar{display:none}
-.postcard .sl{grid-template-columns:minmax(0,42%) minmax(0,1fr);grid-template-rows:1fr auto;align-content:stretch;gap:3cqmin 6cqmin;padding:7cqmin 6cqmin 4cqmin}
-.sl-deco{position:absolute;z-index:-1;right:-15cqmin;top:-17cqmin;width:54cqmin;aspect-ratio:1;border-radius:50%;background:color-mix(in srgb,var(--accent) 20%,transparent)}
-.sl-dots{position:absolute;z-index:-1;right:4cqmin;bottom:9cqmin;width:22cqmin;height:12cqmin;opacity:.7;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 55%,transparent) 1.3px,transparent 1.9px) 0 0/3cqmin 3cqmin}
-.sl-head{min-width:0;display:flex;flex-direction:column;gap:2.8cqmin}
-.postcard .sl-head{justify-content:center}
-.sl-k{margin:0;display:flex;align-items:center;gap:2cqmin;font:700 max(10px,2cqmin) var(--sk-helv);letter-spacing:.16em;text-transform:uppercase;color:color-mix(in srgb,var(--accent) 75%,var(--ink,#1c2230))}
-.sl-k b{display:grid;place-items:center;min-width:2.5em;height:2.5em;border-radius:50%;background:var(--accent);color:#fff;letter-spacing:0}
-.sl-title{margin:0;font:900 max(24px,7.2cqmin)/1.14 var(--sk-slide);letter-spacing:-.02em}
-.sl-title::after{content:"";display:block;width:10cqmin;height:max(4px,1cqmin);margin-top:3cqmin;border-radius:9px;background:var(--accent)}
-.sl-desc{font-size:max(12.5px,2.6cqmin);line-height:1.75;opacity:.85}
-.sl-tags{margin:0;display:flex;flex-wrap:wrap;gap:1.4cqmin}
-.sl-tags span{padding:.35em .85em;border-radius:99px;background:#fff;box-shadow:0 1px 3px rgba(20,30,50,.08);font-size:max(11px,2.1cqmin);font-weight:600;color:color-mix(in srgb,var(--accent) 70%,#1c2230)}
-.sl-cards{min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:3.4cqmin;align-content:center}
-.sl-card{min-width:0;display:flex;flex-direction:column;gap:2.4cqmin;padding:2.6cqmin;border-radius:max(10px,2.6cqmin);background:#fff;color:#1c2230;box-shadow:0 12px 26px -18px rgba(20,30,50,.5),0 0 0 1px rgba(20,30,50,.04)}
-.sl-av{display:block;width:100%;aspect-ratio:1;border-radius:max(8px,1.8cqmin);overflow:hidden;background:color-mix(in srgb,var(--accent) 30%,#fff)}
+/* 슬라이드 — 포인트 색 표지 칸 + 흰 본문 칸 (가로는 좌우, 세로는 위아래) */
+.face.skb-slide{background:var(--paper,#ffffff);box-shadow:0 0 0 1px rgba(20,30,50,.06),0 16px 30px -14px rgba(20,30,50,.35)}
+.sl{position:absolute;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr);color:var(--ink,#1c2230)}
+.postcard .sl{grid-template-columns:36% minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.sl-cover{position:relative;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;gap:2.6cqmin;padding:7cqmin 6.5cqmin 6cqmin;background:var(--accent);color:var(--sl-on)}
+.postcard .sl-cover{justify-content:flex-end;padding:6cqmin 5cqmin}
+.sl-ring{position:absolute;z-index:-1;right:-16cqmin;top:-20cqmin;width:52cqmin;aspect-ratio:1;border-radius:50%;border:max(10px,3.4cqmin) solid color-mix(in srgb,var(--sl-on) 14%,transparent)}
+.postcard .sl-ring{right:auto;left:-18cqmin;top:-14cqmin}
+.sl-dots{position:absolute;z-index:-1;right:5cqmin;bottom:5cqmin;width:16cqmin;height:10cqmin;background:radial-gradient(circle,color-mix(in srgb,var(--sl-on) 45%,transparent) 1.2px,transparent 1.8px) 0 0/2.6cqmin 2.6cqmin}
+.postcard .sl-dots{top:5cqmin;bottom:auto}
+.sl-k{margin:0;font:700 max(9.5px,1.9cqmin) var(--sk-helv);letter-spacing:.22em;text-transform:uppercase;opacity:.8}
+.sl-title{margin:0;font:900 max(24px,7cqmin)/1.12 var(--sk-slide);letter-spacing:-.02em}
+.postcard .sl-title{font-size:max(21px,6.2cqmin)}
+.sl-tags{margin:0;display:flex;flex-wrap:wrap;gap:1.2cqmin}
+.sl-tags span{padding:.3em .8em;border-radius:99px;border:1px solid color-mix(in srgb,var(--sl-on) 45%,transparent);font-size:max(10.5px,2cqmin);font-weight:600}
+.sl-no{position:absolute;right:5.5cqmin;top:5cqmin;margin:0;font:900 max(12px,2.6cqmin) var(--sk-slide);opacity:.55}
+.postcard .sl-no{top:auto;bottom:5.5cqmin;right:5cqmin}
+.sl-main{min-width:0;min-height:0;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:4cqmin;padding:6cqmin 6.5cqmin 4cqmin}
+.sl-main::-webkit-scrollbar{display:none}
+.postcard .sl-main{padding:6cqmin 5.5cqmin 3.6cqmin}
+.sl-cards{display:grid;grid-template-columns:1fr 1fr;gap:4.4cqmin}
+.sl-card{min-width:0;display:flex;flex-direction:column;gap:2.2cqmin}
+.sl-av{display:block;width:100%;aspect-ratio:4/3;border-radius:max(6px,1.4cqmin);overflow:hidden;background:color-mix(in srgb,var(--accent) 22%,#fff)}
+.postcard .sl-av{aspect-ratio:16/10}
 .sl-av img{width:100%;height:100%;object-fit:cover}
 .sl-av i{display:grid;place-items:center;height:100%;font:900 max(22px,8cqmin) var(--sk-slide);font-style:normal;color:#fff}
-.sl-t{min-width:0;display:grid;gap:.9cqmin}
-.sl-t small{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:.25em .7em;border-radius:99px;background:color-mix(in srgb,var(--accent) 14%,#fff);color:color-mix(in srgb,var(--accent) 80%,#1c2230);font:700 max(8.5px,1.7cqmin) var(--sk-helv);letter-spacing:.12em}
+.sl-t{min-width:0;display:grid;gap:.8cqmin;padding-left:2.2cqmin;border-left:max(3px,.7cqmin) solid var(--accent)}
+.sl-t small{font:700 max(8.5px,1.7cqmin) var(--sk-helv);letter-spacing:.16em;color:color-mix(in srgb,var(--accent) 60%,var(--ink,#1c2230));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sl-t b{font:800 max(15px,3.4cqmin)/1.2 var(--sk-slide)}
 .sl-t span{font-size:max(11px,2cqmin);opacity:.55}
 .sl-d{font-size:max(12px,2.3cqmin);line-height:1.65;opacity:.85}
-.sl-foot{grid-column:1/-1;margin:0;display:flex;justify-content:space-between;gap:3cqmin;padding-top:2.4cqmin;border-top:1px solid color-mix(in srgb,currentColor 14%,transparent);font:600 max(9.5px,1.8cqmin) var(--sk-helv);letter-spacing:.1em;opacity:.55}
+.sl-desc{padding:3.2cqmin 3.6cqmin;border-radius:max(6px,1.4cqmin);background:color-mix(in srgb,var(--accent) 9%,var(--paper,#fff));font-size:max(12.5px,2.5cqmin);line-height:1.75}
+.sl-foot{margin:auto 0 0;display:flex;justify-content:space-between;gap:3cqmin;padding-top:2.4cqmin;border-top:1px solid color-mix(in srgb,currentColor 14%,transparent);font:600 max(9.5px,1.8cqmin) var(--sk-helv);letter-spacing:.1em;opacity:.5}
 
 /* 창문 — 창틀 = 페이지 배경색, 움푹 들어간 유리창 */
 .face.skb-window{background:var(--paper,var(--card));box-shadow:none}
@@ -2067,16 +2095,18 @@ span[style*="background-color"]{padding:0 .15em;border-radius:.2em;-webkit-box-d
 .wn-av i{display:grid;place-items:center;height:100%;font:400 max(26px,9cqmin) var(--sk-win);font-style:normal;color:#fff}
 .wn-nm{margin:0;text-align:center;font:500 max(15px,3.4cqmin)/1.2 var(--sk-win);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wn-nm small{display:block;margin-bottom:.6cqmin;font:600 max(8px,1.6cqmin) var(--sk-helv);letter-spacing:.24em;opacity:.5}
-.wn-glass{position:absolute;inset:0;overflow:auto;scrollbar-width:none;padding:5cqmin;display:flex;flex-direction:column;gap:2.4cqmin;background:color-mix(in srgb,var(--accent) 9%,var(--card))}
+.wn-glass{position:absolute;inset:0;overflow:auto;scrollbar-width:none;padding:5cqmin;display:flex;flex-direction:column;gap:2.4cqmin;background:var(--glass);color:var(--glass-ink)}
+/* 글자 창은 그림자 · 반사광 없이 평평하게 */
+.wn-w.tx .wn-pane::after{content:none}
 .wn-glass::-webkit-scrollbar{display:none}
-.wn-k{margin:0;font:600 max(9px,1.8cqmin) var(--sk-helv);letter-spacing:.2em;text-transform:uppercase;color:color-mix(in srgb,var(--accent) 70%,currentColor)}
+.wn-k{margin:0;font:600 max(9px,1.8cqmin) var(--sk-helv);letter-spacing:.2em;text-transform:uppercase;color:color-mix(in srgb,var(--accent) 55%,currentColor)}
 .wn-title{margin:0;font:500 max(20px,5cqmin)/1.2 var(--sk-win)}
 .wn-desc{font-size:max(12.5px,2.5cqmin);line-height:1.75}
 .wn-p{display:grid;gap:.6cqmin;padding-top:2.4cqmin;border-top:1px solid color-mix(in srgb,currentColor 14%,transparent)}
 .wn-p b{font:600 max(14px,2.9cqmin) var(--sk-win)}
 .wn-p span{font-size:max(11px,2cqmin);opacity:.6}
 .wn-d{font-size:max(12px,2.3cqmin);line-height:1.65;opacity:.88}
-.wn-tags{margin:0;font-size:max(11px,2.1cqmin);color:color-mix(in srgb,var(--accent) 70%,currentColor)}
+.wn-tags{margin:0;font-size:max(11px,2.1cqmin);color:color-mix(in srgb,var(--accent) 55%,currentColor)}
 
 /* 채팅 — 메신저 화면 */
 .face.skb-chat{background:var(--paper,#e9eef4);box-shadow:0 0 0 1px rgba(20,30,50,.06),0 16px 30px -14px rgba(20,30,50,.35)}
@@ -2691,8 +2721,9 @@ ${musicOn ? '<div class="yt-wrap" id="ytWrap"><div id="ytFrame"></div></div>' : 
     if (btn.dataset.accent) card.style.setProperty('--accent', btn.dataset.accent); else card.style.removeProperty('--accent');
     if (btn.dataset.mus) musItem(btn.dataset.mus);
     $('sheet').classList.add('on');
+    notify({ sheet: btn.dataset.pd });
   }
-  function closeSheet(){ if ($('sheet').classList.contains('on')) musBack(); $('sheet').classList.remove('on'); }
+  function closeSheet(){ if ($('sheet').classList.contains('on')) { musBack(); notify({ sheet: '' }); } $('sheet').classList.remove('on'); }
   document.querySelectorAll('.dpw').forEach(function(b){ b.addEventListener('click', function(){ openSheet(b); }); });
 
   /* 서브 페어 목록 칩 */
@@ -2705,6 +2736,7 @@ ${musicOn ? '<div class="yt-wrap" id="ytWrap"><div id="ytFrame"></div></div>' : 
       wrap.classList.toggle('filtered', g !== '*');
       var hasAll = !!bar.querySelector('[data-g="*"]');
       wrap.querySelectorAll('.sgrp').forEach(function(s){ s.hidden = g !== '*' && s.dataset.g !== g && (hasAll || s.dataset.g !== ''); });
+      notify({ gsel: [bar.dataset.uid, g] });
     });
   });
 
@@ -2763,6 +2795,23 @@ ${musicOn ? '<div class="yt-wrap" id="ytWrap"><div id="ytFrame"></div></div>' : 
     if (m.__cmd === 'vars') for (var k in m.vars) root.style.setProperty(k, m.vars[k]);
   });
   show(tab);
+  // 편집 중 다시 그려도 보던 세부 탭 · 열어 둔 상세 창을 그대로 (미리보기에서만)
+  (function(){
+    var gs = ${safeJSON(init.gsel || {})}, sh = ${safeJSON(init.sheet || '')};
+    Object.keys(gs).forEach(function(u){
+      var bar = document.querySelector('.gchips[data-uid="' + u + '"]'), c = bar && bar.querySelector('.gchip[data-g="' + gs[u] + '"]');
+      if (c && !c.classList.contains('on')) c.click();
+    });
+    var b = sh && document.querySelector('.dpw[data-pd="' + sh + '"]');
+    var sec = b && b.closest('section');
+    if (sec && +sec.dataset.tab === tab && ${init.opened ? 1 : 0}) {
+      var els = [$('sheet'), $('sheetCard')];
+      els.forEach(function(x){ x.style.transition = 'none'; });
+      openSheet(b);
+      $('sheet').offsetWidth;
+      els.forEach(function(x){ x.style.transition = ''; });
+    }
+  })();
 })();
 <\/script>
 </body></html>`;
@@ -3165,7 +3214,8 @@ function mainsPanel(B, isOpen) {
           ${check(`${p}.showTitle`, '이미지 위에 제목 · 부제 표시')}`,
         back: () => `
           <div class="f">뒷면 템플릿${picker(`${p}.skin`, CARD_SKINS, 'three')}</div>
-          ${basic ? '' : sk === 'window' ? colorOpt(`${p}.paper`, '창틀 색', state.theme.card, '페이지 배경색') : colorOpt(`${p}.paper`, '종이 색', SKIN_PAPER[sk], '템플릿 기본 색')}
+          ${basic ? '' : sk === 'window' ? `<div class="row">${colorOpt(`${p}.paper`, '창틀 색', state.theme.card, '페이지 배경')}${colorOpt(`${p}.glass`, '글자 창 색', mixHex(isHex(m.paper) ? m.paper : state.theme.card, acc, .1), '자동')}</div>
+          <p class="hint">글자색은 창틀 · 글자 창 색에 맞춰 잘 보이게 저절로 바뀌어요.</p>` : colorOpt(`${p}.paper`, '종이 색', SKIN_PAPER[sk], '템플릿 기본 색')}
           <div class="row">${fontSelect(`${p}.fontT`, `글꼴 · ${SKIN_FONTS[sk][0][0]}`, SKIN_FONTS[sk][0][1])}${fontSelect(`${p}.fontB`, '글꼴 · 본문', SKIN_FONTS[sk][1][1])}</div>
           ${sk === 'chip' ? `
           <div class="f">컬러칩 색
@@ -3885,6 +3935,8 @@ window.addEventListener('message', e => {
   if (pvFront && e.source !== pvFront.contentWindow) return;
   if ('tab' in m) view.tab = m.tab;
   if ('scroll' in m) view.scroll = { tab: view.tab, y: m.scroll };
+  if ('gsel' in m) (view.gsel || (view.gsel = {}))[m.gsel[0]] = m.gsel[1];
+  if ('sheet' in m) view.sheet = m.sheet;
   if ('opened' in m) { view.opened = m.opened; view.peek = false; }
   if ('flips' in m) { view.flips = m.flips; syncFlipButtons(); }
 });
@@ -4273,7 +4325,7 @@ ed.addEventListener('change', async e => {
   }
   if (el.tagName === 'SELECT' || el.type === 'checkbox') onField(e);
   // 색 고르기 창을 닫은 뒤에 '테마 색으로' 버튼 · 목록 점 색 갱신
-  if (el.type === 'color' && /(\.accent|\.picBorderColor|\.paper|^music\.btn(Bg|Color))$/.test(el.dataset.path || '')) renderEditor();
+  if (el.type === 'color' && /(\.accent|\.picBorderColor|\.paper|\.glass|^music\.btn(Bg|Color))$/.test(el.dataset.path || '')) renderEditor();
 });
 
 $('#btnUndo').onclick = undo;
